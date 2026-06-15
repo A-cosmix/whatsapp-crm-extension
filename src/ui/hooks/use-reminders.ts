@@ -50,5 +50,13 @@ export function useReminders() {
     await refresh();
   };
 
-  return { reminders, loading, refresh, createReminder, dismissReminder };
+  const snoozeReminder = async (reminderId: string, minutes: number) => {
+    await sendRuntimeMessage('SNOOZE_REMINDER', {
+      reminderId,
+      snoozeUntil: Date.now() + minutes * 60 * 1000,
+    });
+    await refresh();
+  };
+
+  return { reminders, loading, refresh, createReminder, dismissReminder, snoozeReminder };
 }

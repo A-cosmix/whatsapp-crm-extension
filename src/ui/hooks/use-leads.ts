@@ -18,6 +18,7 @@ export function useLeads() {
   const [leads, setLeads] = useState<LeadView[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -40,12 +41,13 @@ export function useLeads() {
     return unsub;
   }, [refresh]);
 
-  const createLead = async (input: {
-    phone: string;
-    name: string;
-    chatId: string;
-  }) => {
+  const createLead = async (input: { phone: string; name: string; chatId: string }) => {
     await sendRuntimeMessage('CREATE_LEAD', input);
+    await refresh();
+  };
+
+  const captureFromChat = async () => {
+    await sendRuntimeMessage('CAPTURE_LEAD_FROM_CHAT');
     await refresh();
   };
 
@@ -54,5 +56,12 @@ export function useLeads() {
     await refresh();
   };
 
-  return { leads, loading, error, refresh, createLead, updateStage };
+  const filtered = leads.filter(
+    (l) =>
+      l.name.toLowerCase().includes(search.toLowerCase()) ||
+      l.phone.includes(search) ||
+      l.stage.includes(search.toLowerCase()),
+  );
+
+  return { leads: filtered, allLeads: leads, loading, error, search, setSearch, refresh, createLead, captureFromChat, updateStage };
 }

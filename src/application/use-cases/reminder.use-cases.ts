@@ -63,6 +63,24 @@ export class HandleReminderAlarmUseCase {
   }
 }
 
+export class SnoozeReminderUseCase {
+  constructor(
+    private readonly reminderRepo: IReminderRepository,
+    private readonly alarmScheduler: IAlarmScheduler,
+  ) {}
+
+  async execute(reminderId: string, snoozeUntil: number): Promise<Reminder> {
+    const reminder = await this.reminderRepo.findById(reminderId);
+    if (!reminder) {
+      throw new ApplicationError('Reminder not found', 'REMINDER_NOT_FOUND');
+    }
+    reminder.snooze(snoozeUntil);
+    await this.reminderRepo.save(reminder);
+    await this.alarmScheduler.schedule(`reminder:${reminder.id}`, snoozeUntil);
+    return reminder;
+  }
+}
+
 export class DismissReminderUseCase {
   constructor(private readonly reminderRepo: IReminderRepository) {}
 

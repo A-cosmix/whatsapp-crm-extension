@@ -9,6 +9,7 @@ import type { IOutreachAgent } from '@domain/agents/agent.types';
 import type { ISupervisorAgent } from '@domain/agents/agent.types';
 import { MessageTypes } from '@domain/messages';
 import type { IMessageBus } from '@domain/services/interfaces';
+import type { AddToReviewQueueUseCase } from './review-queue.use-cases';
 import type { SendAutoReplyDto } from '../dto';
 
 function randomDelay(min: number, max: number): number {
@@ -39,6 +40,7 @@ export class SendAutoReplyUseCase {
     private readonly supervisor: ISupervisorAgent,
     private readonly settings: ISettingsStore,
     private readonly messageBus: IMessageBus,
+    private readonly addToReviewQueue: AddToReviewQueueUseCase,
   ) {}
 
   async execute(input: SendAutoReplyDto): Promise<{ sent: boolean; reason: string }> {
@@ -59,6 +61,15 @@ export class SendAutoReplyUseCase {
         chatId: input.chatId,
         reason: triageDecision.reason,
       });
+      if (triageHandoff.payload.shouldEscalate) {
+        await this.addToReviewQueue.execute({
+          chatId: input.chatId,
+          prospectMessage: input.messageText,
+          draftMessage: '',
+          reason: triageDecision.reason,
+          confidence: triageHandoff.confidence,
+        });
+      }
       return { sent: false, reason: triageDecision.reason };
     }
 
@@ -78,6 +89,13 @@ export class SendAutoReplyUseCase {
       !outreachDecision.approved ||
       outreachHandoff.confidence < threshold
     ) {
+      await this.addToReviewQueue.execute({
+        chatId: input.chatId,
+        prospectMessage: input.messageText,
+        draftMessage: outreachHandoff.payload.message,
+        reason: 'Low confidence — queued for review',
+        confidence: outreachHandoff.confidence,
+      });
       await this.messageBus.publish(MessageTypes.AUTO_REPLY_QUEUED, {
         chatId: input.chatId,
         reason: 'Low confidence — queued for review',

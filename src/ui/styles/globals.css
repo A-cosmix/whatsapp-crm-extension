@@ -2,9 +2,76 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background-color: #111b21;
-  color: #e9edef;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    background-color: #0b141a;
+    color: #e9edef;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111b21;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2a3942;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #374955;
+  }
+
+  ::selection {
+    background: rgba(0, 168, 132, 0.35);
+    color: #e9edef;
+  }
+}
+
+@layer components {
+  .crm-input {
+    @apply w-full rounded-lg border border-dark-border bg-dark-input px-3 py-2.5 text-sm text-wa-text
+      placeholder:text-wa-muted transition-colors
+      focus:border-wa-green focus:outline-none focus:ring-1 focus:ring-wa-green/40;
+  }
+
+  .crm-btn-primary {
+    @apply rounded-lg bg-wa-green px-4 py-2.5 text-sm font-medium text-white
+      transition-all hover:bg-wa-greenDark active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .crm-btn-secondary {
+    @apply rounded-lg border border-dark-border bg-dark-surface px-3 py-2 text-xs text-wa-text
+      transition-colors hover:border-wa-green/40 hover:bg-dark-hover;
+  }
+
+  .crm-btn-danger {
+    @apply rounded-lg border border-wa-danger/40 bg-wa-danger/10 px-3 py-2 text-xs text-wa-danger
+      transition-colors hover:bg-wa-danger/20;
+  }
+
+  .crm-card {
+    @apply rounded-xl border border-dark-border bg-dark-surface p-4 shadow-card;
+  }
+
+  .crm-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
 }

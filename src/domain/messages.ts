@@ -10,6 +10,9 @@ export const MessageTypes = {
   AUTO_REPLY_QUEUED: 'AUTO_REPLY_QUEUED',
   WHATSAPP_ACTION: 'WHATSAPP_ACTION',
   SETTINGS_UPDATED: 'SETTINGS_UPDATED',
+  CAMPAIGNS_SYNC: 'CAMPAIGNS_SYNC',
+  REVIEW_QUEUE_SYNC: 'REVIEW_QUEUE_SYNC',
+  CHAT_OPENED: 'CHAT_OPENED',
 } as const;
 
 export type MessageType = (typeof MessageTypes)[keyof typeof MessageTypes];
@@ -57,10 +60,17 @@ export interface MessageReceivedPayload {
 }
 
 export interface WhatsAppActionRequest {
-  action: 'send' | 'getMessages' | 'getActiveChat' | 'getContact' | 'isConnected';
+  action:
+    | 'send'
+    | 'getMessages'
+    | 'getActiveChat'
+    | 'getContact'
+    | 'isConnected'
+    | 'openChat';
   chatId?: string;
   text?: string;
   limit?: number;
+  phone?: string;
 }
 
 export interface WhatsAppActionResponse {
@@ -76,6 +86,7 @@ export interface AIConfig {
   autoReplyConfidenceThreshold: number;
   maxTokensPerRequest: number;
   systemPrompt: string;
+  dailyBulkCap: number;
 }
 
 export const DEFAULT_AI_CONFIG: AIConfig = {
@@ -86,4 +97,5 @@ export const DEFAULT_AI_CONFIG: AIConfig = {
   maxTokensPerRequest: 500,
   systemPrompt:
     'You are a helpful sales assistant. Reply concisely in the same language as the customer (Hindi, English, or Hinglish). Be professional and friendly.',
+  dailyBulkCap: 50,
 };

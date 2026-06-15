@@ -3,6 +3,7 @@ import type { WhatsAppActionRequest } from '@domain/messages';
 
 const DEBOUNCE_MS = 500;
 const seenMessageIds = new Set<string>();
+let lastChatId = '';
 
 function getMessageInput(): HTMLElement | null {
   return document.querySelector('#main [contenteditable="true"][role="textbox"]');
@@ -13,13 +14,23 @@ function getActiveChatTitle(): string {
   return header?.getAttribute('title') ?? 'Unknown';
 }
 
+function getHeaderSubtitle(): string {
+  const subtitle = document.querySelector('#main header span[data-testid="selectable-text"]');
+  return subtitle?.textContent?.trim() ?? '';
+}
+
+function extractPhoneFromText(text: string): string {
+  const digits = text.replace(/[^\d+]/g, '');
+  if (digits.length >= 10) return digits.startsWith('+') ? digits : `+${digits}`;
+  return '';
+}
+
 function getActiveChatId(): string {
   return getActiveChatTitle().replace(/\s+/g, '_').toLowerCase();
 }
 
 function isGroupChat(): boolean {
-  const groupIcon = document.querySelector('#main header [data-icon="default-group"]');
-  return groupIcon !== null;
+  return document.querySelector('#main header [data-icon="default-group"]') !== null;
 }
 
 function extractMessages(limit: number): ConversationMessage[] {
@@ -78,9 +89,28 @@ function isWhatsAppReady(): boolean {
   return document.querySelector('#pane-side') !== null && document.querySelector('#main') !== null;
 }
 
-async function handleWhatsAppAction(
-  request: WhatsAppActionRequest,
-): Promise<unknown> {
+function getContactInfo(): ContactInfo {
+  const name = getActiveChatTitle();
+  const subtitle = getHeaderSubtitle();
+  const phone = extractPhoneFromText(subtitle) || extractPhoneFromText(name);
+  return {
+    chatId: getActiveChatId(),
+    phone,
+    name,
+    isGroup: isGroupChat(),
+  };
+}
+
+function notifyChatOpened(chatId: string): void {
+  if (chatId === lastChatId || !chatId || chatId === 'unknown') return;
+  lastChatId = chatId;
+  chrome.runtime.sendMessage({
+    type: 'CHAT_OPENED',
+    payload: { chatId },
+  });
+}
+
+async function handleWhatsAppAction(request: WhatsAppActionRequest): Promise<unknown> {
   switch (request.action) {
     case 'isConnected':
       return isWhatsAppReady();
@@ -91,19 +121,15 @@ async function handleWhatsAppAction(
     case 'getMessages':
       return extractMessages(request.limit ?? 20);
 
-    case 'getContact': {
-      const info: ContactInfo = {
-        chatId: getActiveChatId(),
-        phone: '',
-        name: getActiveChatTitle(),
-        isGroup: isGroupChat(),
-      };
-      return info;
-    }
+    case 'getContact':
+      return getContactInfo();
 
     case 'send':
       await sendMessage(request.text ?? '');
       return { sent: true };
+
+    case 'openChat':
+      return { opened: true };
 
     default:
       throw new Error(`Unknown action: ${request.action}`);
@@ -132,6 +158,9 @@ function observeMessages(): void {
   }
 
   const observer = new MutationObserver(() => {
+    const chatId = getActiveChatId();
+    notifyChatOpened(chatId);
+
     const containers = document.querySelectorAll('#main [data-testid="msg-container"]');
     const last = containers[containers.length - 1];
     if (!last) return;
@@ -158,6 +187,10 @@ function observeMessages(): void {
   });
 
   observer.observe(mainPanel, { childList: true, subtree: true });
+  observer.observe(document.querySelector('#pane-side') ?? document.body, {
+    childList: true,
+    subtree: true,
+  });
 }
 
 export default defineContentScript({

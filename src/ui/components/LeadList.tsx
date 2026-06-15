@@ -14,6 +14,8 @@ interface LeadListProps {
   onStageChange: (leadId: string, stage: LeadStage) => void;
   onSetReminder: (lead: { id: string; chatId: string; name: string }) => void;
   onToggleAutoReply: (chatId: string, enabled: boolean) => void;
+  selectedIds?: Set<string>;
+  onSelect?: (id: string) => void;
 }
 
 export function LeadList({
@@ -22,22 +24,28 @@ export function LeadList({
   onStageChange,
   onSetReminder,
   onToggleAutoReply,
+  selectedIds,
+  onSelect,
 }: LeadListProps) {
   if (loading) {
-    return <p className="text-sm text-wa-muted">Loading leads...</p>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-wa-green border-t-transparent" />
+      </div>
+    );
   }
 
   if (leads.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-wa-border p-6 text-center">
-        <p className="text-sm text-wa-muted">No leads yet.</p>
-        <p className="mt-1 text-xs text-wa-muted">Add a lead from the form above.</p>
+      <div className="crm-card border-dashed text-center">
+        <p className="text-sm text-wa-muted">No leads found</p>
+        <p className="mt-1 text-xs text-wa-muted">Capture from WhatsApp or add manually</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {leads.map((lead) => (
         <LeadCard
           key={lead.id}
@@ -45,6 +53,8 @@ export function LeadList({
           onStageChange={onStageChange}
           onSetReminder={onSetReminder}
           onToggleAutoReply={onToggleAutoReply}
+          selected={selectedIds?.has(lead.id)}
+          onSelect={onSelect}
         />
       ))}
     </div>
