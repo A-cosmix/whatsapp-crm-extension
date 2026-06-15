@@ -1,6 +1,7 @@
 import { ApplicationError } from '@domain/errors';
 import { ReviewQueueItem } from '@domain/entities/review-queue-item';
 import type { IReviewQueueRepository } from '@domain/repositories/review-queue.repository';
+import type { ILeadRepository } from '@domain/repositories/lead.repository';
 import type { IWhatsAppAdapter } from '@domain/services/interfaces';
 import type { IMessageBus } from '@domain/services/interfaces';
 import { MessageTypes } from '@domain/messages';
@@ -33,7 +34,6 @@ export class AddToReviewQueueUseCase {
       ...input,
     });
     await this.reviewRepo.save(item);
-    await this.messageBus.publish(MessageTypes.REVIEW_QUEUE_SYNC, { itemId: item.id });
     return item;
   }
 }
@@ -41,6 +41,7 @@ export class AddToReviewQueueUseCase {
 export class ApproveReviewItemUseCase {
   constructor(
     private readonly reviewRepo: IReviewQueueRepository,
+    private readonly leadRepo: ILeadRepository,
     private readonly whatsapp: IWhatsAppAdapter,
     private readonly messageBus: IMessageBus,
   ) {}
@@ -51,7 +52,14 @@ export class ApproveReviewItemUseCase {
       throw new ApplicationError('Review item not found', 'NOT_FOUND');
     }
 
-    const result = await this.whatsapp.send(item.chatId, item.draftMessage);
+    const lead =
+      (item.leadId ? await this.leadRepo.findById(item.leadId) : null) ??
+      (await this.leadRepo.findByChatId(item.chatId));
+
+    const result = await this.whatsapp.send(item.chatId, item.draftMessage, {
+      phone: lead?.phone,
+      name: lead?.name,
+    });
     if (!result.success) {
       throw new ApplicationError(result.error ?? 'Send failed', 'SEND_FAILED');
     }

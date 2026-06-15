@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WhatsApp CRM — Privacy Policy</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; color: #e9edef; background: #111b21; }
+    h1, h2 { color: #00a884; }
+    a { color: #53bdeb; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy</h1>
+  <p><strong>WhatsApp CRM Chrome Extension</strong> — Last updated: June 2026</p>
+
+  <h2>Summary</h2>
+  <p>
+    This extension runs locally in your browser. Lead data, reminders, campaigns, and settings are stored
+    in <strong>IndexedDB</strong> on your device via Chrome storage APIs. We do not operate a central server
+    that collects your WhatsApp messages.
+  </p>
+
+  <h2>Data we process</h2>
+  <ul>
+    <li>Contact names, phone numbers, and chat metadata you save as leads</li>
+    <li>Reminder and campaign content you create</li>
+    <li>WhatsApp message text read from the active chat tab when you use capture, bulk send, or AI auto-reply</li>
+  </ul>
+
+  <h2>Data storage</h2>
+  <p>All CRM data stays on your computer unless you enable optional CRM webhook sync in Settings.</p>
+
+  <h2>Third-party services</h2>
+  <ul>
+    <li><strong>WhatsApp Web</strong> — messaging happens through your logged-in session</li>
+    <li><strong>Ollama (optional)</strong> — if enabled, message context is sent to your local Ollama instance for AI replies</li>
+    <li><strong>Your webhook URL (optional)</strong> — lead sync sends data you configure</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><code>storage</code>, <code>alarms</code>, <code>notifications</code>, <code>sidePanel</code>, <code>tabs</code> — extension features</li>
+    <li><code>web.whatsapp.com</code> — read/send messages in your WhatsApp tab</li>
+    <li><code>localhost:11434</code> — optional local AI (Ollama)</li>
+  </ul>
+
+  <h2>WhatsApp terms</h2>
+  <p>
+    Automated messaging may violate WhatsApp's Terms of Service. Use bulk and auto-reply features responsibly
+    and only with contacts who have opted in.
+  </p>
+
+  <h2>Contact</h2>
+  <p>Questions: open an issue at <a href="https://github.com/A-cosmix/whatsapp-crm-extension">GitHub</a>.</p>
+</body>
+</html>

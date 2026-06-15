@@ -19,21 +19,28 @@ export interface ContactInfo {
   isGroup: boolean;
 }
 
+export interface SendMessageOptions {
+  phone?: string;
+  name?: string;
+}
+
 export interface IMessageSender {
-  send(chatId: string, text: string): Promise<SendResult>;
+  send(chatId: string, text: string, options?: SendMessageOptions): Promise<SendResult>;
 }
 
 export interface IMessageReader {
-  getRecentMessages(chatId: string, limit: number): Promise<ConversationMessage[]>;
+  getRecentMessages(chatId: string, limit: number, options?: SendMessageOptions): Promise<ConversationMessage[]>;
 }
 
 export interface IContactReader {
   getContactInfo(chatId: string): Promise<ContactInfo | null>;
   getActiveChatId(): Promise<string | null>;
+  scrapePhone(): Promise<string>;
 }
 
 export interface IWhatsAppAdapter extends IMessageSender, IMessageReader, IContactReader {
   isConnected(): Promise<boolean>;
+  openChat(options: SendMessageOptions & { chatId?: string }): Promise<void>;
 }
 
 export interface LLMRequest {

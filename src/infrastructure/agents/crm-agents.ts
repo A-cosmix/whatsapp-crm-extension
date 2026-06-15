@@ -9,7 +9,7 @@ import type {
 } from '@domain/agents/agent.types';
 import { createHandoff } from '@domain/agents/agent.types';
 import type { ILLMProvider } from '@domain/services/interfaces';
-import { collectLLMResponse } from '../llm/ollama-provider';
+import { collectLLMResponse } from '../llm/settings-aware-ollama';
 
 const ESCALATE_KEYWORDS = ['lawyer', 'legal', 'refund', 'complaint', 'manager', 'वकील', 'शिकायत'];
 const INTERESTED_KEYWORDS = ['interested', 'price', 'cost', 'demo', 'call', 'दिलचस्पी', 'कीमत', 'डेमो'];

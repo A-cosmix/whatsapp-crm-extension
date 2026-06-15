@@ -55,6 +55,21 @@ Agar last command mein files dikhen → Chrome mein load karo:
 
 ---
 
+## Test checklist (sab kaam kar raha hai ya nahi)
+
+| Step | Kya karna hai | Expected |
+|------|---------------|----------|
+| 1 | Kisi chat par jao → **Capture Lead** | Lead list mein naam + phone dikhe |
+| 2 | Lead par stage button → **Remind** | Reminders tab mein entry |
+| 3 | Leads select karo → Bulk tab → campaign banao | Campaign "running" dikhe |
+| 4 | Lead par **AI Reply** ON karo | Button "AI On" ho jaye |
+| 5 | Settings → Ollama URL save (agar AI chahiye) | `http://localhost:11434` |
+| 6 | Prospect message aaye (AI on) | Reply ya Review tab mein draft |
+
+> **Note:** Bulk/AI ke liye WhatsApp tab open honi chahiye. Phone capture ke liye kabhi contact header click karke try karo.
+
+---
+
 ## Common errors
 
 | Problem | Fix |

@@ -1,14 +1,11 @@
 import { ApplicationError } from '@domain/errors';
 import { AutoReplyConfig } from '@domain/entities/auto-reply-config';
 import type { IAutoReplyRepository } from '@domain/repositories/auto-reply.repository';
-import type { ILLMProvider } from '@domain/services/interfaces';
+import type { ILeadRepository } from '@domain/repositories/lead.repository';
+import type { ILLMProvider, IWhatsAppAdapter, IMessageBus } from '@domain/services/interfaces';
 import type { ISettingsStore } from '@domain/services/platform.interfaces';
-import type { IWhatsAppAdapter } from '@domain/services/interfaces';
-import type { IReplyTriageAgent } from '@domain/agents/agent.types';
-import type { IOutreachAgent } from '@domain/agents/agent.types';
-import type { ISupervisorAgent } from '@domain/agents/agent.types';
+import type { IReplyTriageAgent, IOutreachAgent, ISupervisorAgent } from '@domain/agents/agent.types';
 import { MessageTypes } from '@domain/messages';
-import type { IMessageBus } from '@domain/services/interfaces';
 import type { AddToReviewQueueUseCase } from './review-queue.use-cases';
 import type { SendAutoReplyDto } from '../dto';
 
@@ -33,7 +30,7 @@ export class ToggleAutoReplyUseCase {
 export class SendAutoReplyUseCase {
   constructor(
     private readonly autoReplyRepo: IAutoReplyRepository,
-    private readonly llm: ILLMProvider,
+    private readonly leadRepo: ILeadRepository,
     private readonly whatsapp: IWhatsAppAdapter,
     private readonly triageAgent: IReplyTriageAgent,
     private readonly outreachAgent: IOutreachAgent,
@@ -53,27 +50,35 @@ export class SendAutoReplyUseCase {
       return { sent: false, reason: 'Groups excluded from auto-reply' };
     }
 
+    const lead = await this.leadRepo.findByChatId(input.chatId);
+    const sendOpts = { phone: lead?.phone, name: lead?.name };
+
     const triageHandoff = await this.triageAgent.triage(input.messageText, 'prospect');
     const triageDecision = await this.supervisor.evaluate(triageHandoff);
 
     if (!triageHandoff.payload.shouldAutoReply || !triageDecision.approved) {
-      await this.messageBus.publish(MessageTypes.AUTO_REPLY_QUEUED, {
-        chatId: input.chatId,
-        reason: triageDecision.reason,
-      });
       if (triageHandoff.payload.shouldEscalate) {
         await this.addToReviewQueue.execute({
           chatId: input.chatId,
+          leadId: lead?.id,
           prospectMessage: input.messageText,
           draftMessage: '',
           reason: triageDecision.reason,
           confidence: triageHandoff.confidence,
         });
       }
+      await this.messageBus.publish(MessageTypes.AUTO_REPLY_QUEUED, {
+        chatId: input.chatId,
+        reason: triageDecision.reason,
+      });
       return { sent: false, reason: triageDecision.reason };
     }
 
-    const messages = await this.whatsapp.getRecentMessages(input.chatId, config.maxHistoryMessages);
+    const messages = await this.whatsapp.getRecentMessages(
+      input.chatId,
+      config.maxHistoryMessages,
+      sendOpts,
+    );
     const context = messages.map((m) => `${m.role}: ${m.text}`).join('\n');
 
     const aiConfig = await this.settings.getAIConfig();
@@ -83,14 +88,12 @@ export class SendAutoReplyUseCase {
     );
 
     const outreachDecision = await this.supervisor.evaluate(outreachHandoff);
-    const threshold = config.confidenceThreshold;
+    const threshold = Math.max(config.confidenceThreshold, aiConfig.autoReplyConfidenceThreshold);
 
-    if (
-      !outreachDecision.approved ||
-      outreachHandoff.confidence < threshold
-    ) {
+    if (!outreachDecision.approved || outreachHandoff.confidence < threshold) {
       await this.addToReviewQueue.execute({
         chatId: input.chatId,
+        leadId: lead?.id,
         prospectMessage: input.messageText,
         draftMessage: outreachHandoff.payload.message,
         reason: 'Low confidence — queued for review',
@@ -111,7 +114,11 @@ export class SendAutoReplyUseCase {
       throw new ApplicationError('WhatsApp is not connected', 'WHATSAPP_DISCONNECTED');
     }
 
-    const result = await this.whatsapp.send(input.chatId, outreachHandoff.payload.message);
+    const result = await this.whatsapp.send(
+      input.chatId,
+      outreachHandoff.payload.message,
+      sendOpts,
+    );
     if (!result.success) {
       throw new ApplicationError(result.error ?? 'Failed to send message', 'SEND_FAILED');
     }

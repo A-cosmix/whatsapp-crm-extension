@@ -17,7 +17,7 @@ export default defineConfig({
   manifest: {
     name: 'WhatsApp CRM',
     description: 'CRM extension for WhatsApp Web — leads, reminders, AI auto-reply',
-    permissions: ['storage', 'alarms', 'notifications', 'sidePanel'],
+    permissions: ['storage', 'alarms', 'notifications', 'sidePanel', 'tabs'],
     host_permissions: ['https://web.whatsapp.com/*', 'http://localhost:11434/*'],
     action: {
       default_title: 'WhatsApp CRM',
@@ -31,6 +31,10 @@ export default defineConfig({
       16: '/icon/16.png',
       48: '/icon/48.png',
       128: '/icon/128.png',
+    },
+    options_ui: {
+      page: 'privacy.html',
+      open_in_tab: true,
     },
   },
 });

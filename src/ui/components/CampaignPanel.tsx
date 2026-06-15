@@ -15,9 +15,10 @@ interface CampaignListProps {
   loading: boolean;
   onPause: (id: string) => void;
   onCancel: (id: string) => void;
+  onResume: (id: string) => void;
 }
 
-export function CampaignList({ campaigns, loading, onPause, onCancel }: CampaignListProps) {
+export function CampaignList({ campaigns, loading, onPause, onCancel, onResume }: CampaignListProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -57,6 +58,16 @@ export function CampaignList({ campaigns, loading, onPause, onCancel }: Campaign
             <div className="mt-3 flex gap-2">
               <button type="button" onClick={() => onPause(c.id)} className="crm-btn-secondary">
                 Pause
+              </button>
+              <button type="button" onClick={() => onCancel(c.id)} className="crm-btn-danger">
+                Cancel
+              </button>
+            </div>
+          )}
+          {c.status === 'paused' && (
+            <div className="mt-3 flex gap-2">
+              <button type="button" onClick={() => onResume(c.id)} className="crm-btn-primary !py-1.5 !text-xs">
+                Resume
               </button>
               <button type="button" onClick={() => onCancel(c.id)} className="crm-btn-danger">
                 Cancel

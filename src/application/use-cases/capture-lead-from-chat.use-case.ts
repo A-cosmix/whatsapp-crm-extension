@@ -6,7 +6,6 @@ import type { IWhatsAppAdapter } from '@domain/services/interfaces';
 import type { ICrmSyncService } from '@domain/services/crm-sync.interface';
 import type { IMessageBus } from '@domain/services/interfaces';
 import { MessageTypes } from '@domain/messages';
-import type { CreateLeadDto } from '../dto';
 
 export class CaptureLeadFromChatUseCase {
   constructor(
@@ -18,6 +17,14 @@ export class CaptureLeadFromChatUseCase {
   ) {}
 
   async execute(): Promise<Lead> {
+    const connected = await this.whatsapp.isConnected();
+    if (!connected) {
+      throw new ApplicationError(
+        'Open web.whatsapp.com in a tab and select a chat first.',
+        'WHATSAPP_DISCONNECTED',
+      );
+    }
+
     const chatId = await this.whatsapp.getActiveChatId();
     if (!chatId) {
       throw new ApplicationError('No active WhatsApp chat', 'NO_ACTIVE_CHAT');
@@ -37,13 +44,18 @@ export class CaptureLeadFromChatUseCase {
       throw new ApplicationError('Cannot capture group chats as leads', 'GROUP_NOT_ALLOWED');
     }
 
-    const phoneRaw = contact.phone;
+    let phoneRaw = contact.phone;
+    if (!phoneRaw || phoneRaw.replace(/\D/g, '').length < 10) {
+      phoneRaw = await this.whatsapp.scrapePhone();
+    }
+
     if (!phoneRaw || phoneRaw.replace(/\D/g, '').length < 10) {
       throw new ApplicationError(
-        'Phone number not visible. Open contact info in WhatsApp first.',
+        'Phone not found. Click the contact name at top in WhatsApp, then try again.',
         'PHONE_NOT_FOUND',
       );
     }
+
     const phone = new PhoneNumber(phoneRaw);
 
     const lead = Lead.create({

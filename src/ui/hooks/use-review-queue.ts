@@ -29,9 +29,12 @@ export function useReviewQueue() {
 
   useEffect(() => {
     refresh();
-    const unsub = onRuntimeMessage<{ items: ReviewItemView[] }>(
+    const unsub = onRuntimeMessage<{ items?: ReviewItemView[] }>(
       MessageTypes.REVIEW_QUEUE_SYNC,
-      (payload) => setItems(payload.items),
+      (payload) => {
+        if (payload.items) setItems(payload.items);
+        else refresh();
+      },
     );
     return unsub;
   }, [refresh]);

@@ -1,9 +1,13 @@
-import type { INotifier } from '@domain/services/platform.interfaces';
+export class ChromeNotifier {
+  constructor() {
+    chrome.notifications.onClicked.addListener(() => {
+      chrome.tabs.create({ url: 'https://web.whatsapp.com' });
+    });
+  }
 
-export class ChromeNotifier implements INotifier {
   async show(title: string, message: string): Promise<void> {
     const iconUrl = chrome.runtime.getURL('icon/128.png');
-    await chrome.notifications.create({
+    await chrome.notifications.create(`crm-${Date.now()}`, {
       type: 'basic',
       iconUrl,
       title,

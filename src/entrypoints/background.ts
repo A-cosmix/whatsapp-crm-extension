@@ -2,8 +2,10 @@ import {
   createBackgroundApp,
   reRegisterAlarms,
   scheduleAutoReply,
+  handleAutoReplyAlarm,
   syncStateToUI,
   serializeLead,
+  serializeLeadsForUI,
   serializeReminder,
   serializeCampaign,
   serializeReviewItem,
@@ -41,6 +43,9 @@ export default defineBackground(() => {
       const campaignId = alarm.name.replace('campaign:', '');
       await app.executeCampaignStep.execute(campaignId);
       await syncStateToUI(app);
+    } else if (alarm.name.startsWith('autoreply:')) {
+      const chatId = alarm.name.replace('autoreply:', '');
+      await handleAutoReplyAlarm(app, chatId);
     }
   });
 
@@ -69,7 +74,7 @@ export default defineBackground(() => {
           app.getSettings.execute(),
         ]);
         return {
-          leads: leads.map(serializeLead),
+          leads: await serializeLeadsForUI(leads, app.autoReplyRepo),
           reminders: reminders.map(serializeReminder),
           campaigns: campaigns.map(serializeCampaign),
           reviewQueue: reviewQueue.map(serializeReviewItem),
@@ -121,6 +126,7 @@ export default defineBackground(() => {
       case 'TOGGLE_AUTO_REPLY': {
         const dto = ToggleAutoReplyDtoSchema.parse(message.payload);
         const config = await app.toggleAutoReply.execute(dto);
+        await syncStateToUI(app);
         return config.toJSON();
       }
 
@@ -141,6 +147,13 @@ export default defineBackground(() => {
       case 'CANCEL_CAMPAIGN': {
         const { campaignId } = message.payload as { campaignId: string };
         await app.cancelCampaign.execute(campaignId);
+        await syncStateToUI(app);
+        return { ok: true };
+      }
+
+      case 'RESUME_CAMPAIGN': {
+        const { campaignId } = message.payload as { campaignId: string };
+        await app.resumeCampaign.execute(campaignId);
         await syncStateToUI(app);
         return { ok: true };
       }
@@ -172,12 +185,13 @@ export default defineBackground(() => {
       case MessageTypes.MESSAGE_RECEIVED: {
         const payload = message.payload as {
           chatId: string;
-          text: string;
+          messageText?: string;
+          text?: string;
           messageId: string;
           timestamp: number;
           isGroup: boolean;
         };
-        scheduleAutoReply(app, payload);
+        await scheduleAutoReply(app, payload);
         return { queued: true };
       }
 

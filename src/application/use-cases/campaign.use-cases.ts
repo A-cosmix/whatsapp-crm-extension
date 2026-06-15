@@ -102,6 +102,21 @@ export class CancelCampaignUseCase {
   }
 }
 
+export class ResumeCampaignUseCase {
+  constructor(
+    private readonly campaignRepo: ICampaignRepository,
+    private readonly alarmScheduler: IAlarmScheduler,
+  ) {}
+
+  async execute(campaignId: string): Promise<void> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) throw new ApplicationError('Campaign not found', 'NOT_FOUND');
+    campaign.start();
+    await this.campaignRepo.save(campaign);
+    await this.alarmScheduler.schedule(`campaign:${campaignId}`, Date.now() + 2000);
+  }
+}
+
 export class ExecuteCampaignStepUseCase {
   constructor(
     private readonly campaignRepo: ICampaignRepository,
@@ -153,7 +168,10 @@ export class ExecuteCampaignStepUseCase {
     const delay = randomDelay(campaign.minDelayMs, campaign.maxDelayMs);
     await new Promise((resolve) => setTimeout(resolve, delay));
 
-    const result = await this.whatsapp.send(recipient.chatId, message);
+    const result = await this.whatsapp.send(recipient.chatId, message, {
+      phone: recipient.phone,
+      name: recipient.name,
+    });
     if (result.success) {
       recipient.markSent(message);
       campaign.recordSent();

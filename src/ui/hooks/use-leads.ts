@@ -12,6 +12,7 @@ export interface LeadView {
   tags: string[];
   updatedAt: number;
   score?: number;
+  autoReplyEnabled?: boolean;
 }
 
 export function useLeads() {
