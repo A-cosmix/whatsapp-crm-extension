@@ -14,6 +14,7 @@ import {
   GetCampaignsUseCase,
   PauseCampaignUseCase,
   CancelCampaignUseCase,
+  ResumeCampaignUseCase,
   ExecuteCampaignStepUseCase,
 } from '@application/use-cases/campaign.use-cases';
 import {
@@ -39,7 +40,7 @@ import { ChromeDailySendTracker } from '@infrastructure/scheduling/daily-send-tr
 import { ChromeNotifier } from '@infrastructure/notifications/chrome-notifier';
 import { ChromeSettingsStore } from '@infrastructure/storage/chrome-settings-store';
 import { WebhookCrmSyncService } from '@infrastructure/crm/webhook-crm-sync';
-import { OllamaProvider } from '@infrastructure/llm/ollama-provider';
+import { SettingsAwareOllamaProvider } from '@infrastructure/llm/settings-aware-ollama';
 import { ProxyWhatsAppAdapter } from '@infrastructure/whatsapp/proxy-whatsapp-adapter';
 import {
   RuleBasedTriageAgent,
@@ -72,6 +73,7 @@ export interface BackgroundApp {
   getCampaigns: GetCampaignsUseCase;
   pauseCampaign: PauseCampaignUseCase;
   cancelCampaign: CancelCampaignUseCase;
+  resumeCampaign: ResumeCampaignUseCase;
   executeCampaignStep: ExecuteCampaignStepUseCase;
   getReviewQueue: GetReviewQueueUseCase;
   approveReviewItem: ApproveReviewItemUseCase;
@@ -81,6 +83,7 @@ export interface BackgroundApp {
   updateCrmSync: UpdateCrmSyncUseCase;
   messageBus: ChromeMessageBus;
   reminderRepo: DexieReminderRepository;
+  autoReplyRepo: DexieAutoReplyRepository;
   campaignRepo: DexieCampaignRepository;
   alarmScheduler: ChromeAlarmScheduler;
   settings: ChromeSettingsStore;
@@ -101,7 +104,7 @@ export function createBackgroundApp(): BackgroundApp {
   const crmSync = new WebhookCrmSyncService(settings);
   const dailyTracker = new ChromeDailySendTracker(settings);
 
-  const llm = new OllamaProvider('http://localhost:11434');
+  const llm = new SettingsAwareOllamaProvider(settings);
   const triageAgent = new RuleBasedTriageAgent();
   const outreachAgent = new LLMOutreachAgent(llm, async () => {
     const config = await settings.getAIConfig();
@@ -128,7 +131,7 @@ export function createBackgroundApp(): BackgroundApp {
   const snoozeReminder = new SnoozeReminderUseCase(reminderRepo, alarmScheduler);
   const sendAutoReply = new SendAutoReplyUseCase(
     autoReplyRepo,
-    llm,
+    leadRepo,
     whatsapp,
     triageAgent,
     outreachAgent,
@@ -149,6 +152,7 @@ export function createBackgroundApp(): BackgroundApp {
   const getCampaigns = new GetCampaignsUseCase(campaignRepo);
   const pauseCampaign = new PauseCampaignUseCase(campaignRepo);
   const cancelCampaign = new CancelCampaignUseCase(campaignRepo, alarmScheduler);
+  const resumeCampaign = new ResumeCampaignUseCase(campaignRepo, alarmScheduler);
   const executeCampaignStep = new ExecuteCampaignStepUseCase(
     campaignRepo,
     recipientRepo,
@@ -158,7 +162,7 @@ export function createBackgroundApp(): BackgroundApp {
     messageBus,
   );
   const getReviewQueue = new GetReviewQueueUseCase(reviewRepo);
-  const approveReviewItem = new ApproveReviewItemUseCase(reviewRepo, whatsapp, messageBus);
+  const approveReviewItem = new ApproveReviewItemUseCase(reviewRepo, leadRepo, whatsapp, messageBus);
   const rejectReviewItem = new RejectReviewItemUseCase(reviewRepo);
   const getSettings = new GetSettingsUseCase(settings);
   const updateAIConfig = new UpdateAIConfigUseCase(settings, messageBus);
@@ -180,6 +184,7 @@ export function createBackgroundApp(): BackgroundApp {
     getCampaigns,
     pauseCampaign,
     cancelCampaign,
+    resumeCampaign,
     executeCampaignStep,
     getReviewQueue,
     approveReviewItem,
@@ -189,6 +194,7 @@ export function createBackgroundApp(): BackgroundApp {
     updateCrmSync,
     messageBus,
     reminderRepo,
+    autoReplyRepo,
     campaignRepo,
     alarmScheduler,
     settings,
@@ -249,6 +255,21 @@ export function serializeReviewItem(item: ReviewQueueItem) {
   };
 }
 
+export async function serializeLeadsForUI(
+  leads: Lead[],
+  autoReplyRepo: DexieAutoReplyRepository,
+) {
+  return Promise.all(
+    leads.map(async (lead) => {
+      const config = await autoReplyRepo.findByChatId(lead.chatId);
+      return {
+        ...serializeLead(lead),
+        autoReplyEnabled: config?.enabled ?? false,
+      };
+    }),
+  );
+}
+
 export async function syncStateToUI(app: BackgroundApp): Promise<void> {
   const [leads, reminders, campaigns, reviewQueue] = await Promise.all([
     app.getLeads.execute(),
@@ -258,7 +279,7 @@ export async function syncStateToUI(app: BackgroundApp): Promise<void> {
   ]);
 
   await app.messageBus.publish(MessageTypes.LEADS_SYNC, {
-    leads: leads.map(serializeLead),
+    leads: await serializeLeadsForUI(leads, app.autoReplyRepo),
   });
   await app.messageBus.publish(MessageTypes.REMINDERS_SYNC, {
     reminders: reminders.map(serializeReminder),
@@ -283,31 +304,55 @@ export async function reRegisterAlarms(app: BackgroundApp): Promise<void> {
   }
 }
 
-const autoReplyDebounce = new Map<string, ReturnType<typeof setTimeout>>();
+const AUTO_REPLY_ALARM_PREFIX = 'autoreply:';
+const AUTO_REPLY_DEBOUNCE_MS = 3500;
 
-export function scheduleAutoReply(
+interface PendingAutoReply {
+  chatId: string;
+  messageText: string;
+  messageId: string;
+  isGroup: boolean;
+}
+
+export async function scheduleAutoReply(
   app: BackgroundApp,
   payload: {
     chatId: string;
-    text: string;
+    messageText?: string;
+    text?: string;
     messageId: string;
     isGroup: boolean;
   },
-): void {
-  const existing = autoReplyDebounce.get(payload.chatId);
-  if (existing) clearTimeout(existing);
+): Promise<void> {
+  const normalized: PendingAutoReply = {
+    chatId: payload.chatId,
+    messageText: payload.messageText ?? payload.text ?? '',
+    messageId: payload.messageId,
+    isGroup: payload.isGroup,
+  };
 
-  const timer = setTimeout(async () => {
-    autoReplyDebounce.delete(payload.chatId);
-    try {
-      const result = await app.sendAutoReply.execute(payload);
-      if (result.sent) {
-        await syncStateToUI(app);
-      }
-    } catch (error) {
-      console.error('[CRM] Auto-reply failed:', error);
-    }
-  }, 3500);
+  if (!normalized.messageText) return;
 
-  autoReplyDebounce.set(payload.chatId, timer);
+  const storageKey = `pending_autoreply_${payload.chatId}`;
+  await chrome.storage.session.set({ [storageKey]: normalized });
+
+  const alarmName = `${AUTO_REPLY_ALARM_PREFIX}${payload.chatId}`;
+  await chrome.alarms.clear(alarmName);
+  await chrome.alarms.create(alarmName, { when: Date.now() + AUTO_REPLY_DEBOUNCE_MS });
+}
+
+export async function handleAutoReplyAlarm(app: BackgroundApp, chatId: string): Promise<void> {
+  const storageKey = `pending_autoreply_${chatId}`;
+  const stored = await chrome.storage.session.get(storageKey);
+  const payload = stored[storageKey] as PendingAutoReply | undefined;
+  if (!payload) return;
+
+  try {
+    await app.sendAutoReply.execute(payload);
+  } catch (error) {
+    console.error('[CRM] Auto-reply failed:', error);
+  } finally {
+    await chrome.storage.session.remove(storageKey);
+    await syncStateToUI(app);
+  }
 }

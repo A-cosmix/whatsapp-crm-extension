@@ -33,6 +33,7 @@ interface LeadCardProps {
     stage: LeadStage;
     score?: number;
     chatId: string;
+    autoReplyEnabled?: boolean;
   };
   onStageChange: (leadId: string, stage: LeadStage) => void;
   onSetReminder: (lead: { id: string; chatId: string; name: string }) => void;
@@ -98,8 +99,12 @@ export function LeadCard({
             <button type="button" onClick={() => onSetReminder(lead)} className="crm-btn-secondary">
               Remind
             </button>
-            <button type="button" onClick={() => onToggleAutoReply(lead.chatId, true)} className="crm-btn-secondary">
-              AI Reply
+            <button
+              type="button"
+              onClick={() => onToggleAutoReply(lead.chatId, !lead.autoReplyEnabled)}
+              className={`crm-btn-secondary ${lead.autoReplyEnabled ? '!border-wa-green/50 !text-wa-green' : ''}`}
+            >
+              {lead.autoReplyEnabled ? 'AI On' : 'AI Reply'}
             </button>
           </div>
         </div>

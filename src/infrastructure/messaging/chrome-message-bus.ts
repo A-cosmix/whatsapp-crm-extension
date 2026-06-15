@@ -2,20 +2,13 @@ import type { IMessageBus } from '@domain/services/interfaces';
 
 type Handler = (payload: unknown) => void;
 
+/**
+ * Internal event bus for in-process subscribers only.
+ * Cross-context sync uses chrome.runtime.sendMessage via publish().
+ * Does NOT register a global onMessage listener (avoids stealing sendResponse from background).
+ */
 export class ChromeMessageBus implements IMessageBus {
   private readonly handlers = new Map<string, Set<Handler>>();
-
-  constructor() {
-    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
-      chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-        if (message?.type && message?.payload !== undefined) {
-          this.dispatch(message.type, message.payload);
-          sendResponse({ ok: true });
-        }
-        return true;
-      });
-    }
-  }
 
   async publish<T>(type: string, payload: T): Promise<void> {
     this.dispatch(type, payload);
@@ -24,7 +17,7 @@ export class ChromeMessageBus implements IMessageBus {
       try {
         await chrome.runtime.sendMessage({ type, payload });
       } catch {
-        // No listeners in some contexts — local dispatch is sufficient
+        // Side panel may be closed — ignore
       }
     }
   }

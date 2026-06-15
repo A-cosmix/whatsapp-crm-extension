@@ -29,7 +29,7 @@ export function useCampaigns() {
 
   useEffect(() => {
     refresh();
-    const unsub = onRuntimeMessage<{ campaigns: CampaignView[] }>(
+    const unsub = onRuntimeMessage<{ campaigns?: CampaignView[] }>(
       MessageTypes.CAMPAIGNS_SYNC,
       (payload) => {
         if (payload.campaigns) setCampaigns(payload.campaigns);
@@ -58,5 +58,10 @@ export function useCampaigns() {
     await refresh();
   };
 
-  return { campaigns, loading, createCampaign, pauseCampaign, cancelCampaign };
+  const resumeCampaign = async (campaignId: string) => {
+    await sendRuntimeMessage('RESUME_CAMPAIGN', { campaignId });
+    await refresh();
+  };
+
+  return { campaigns, loading, createCampaign, pauseCampaign, cancelCampaign, resumeCampaign };
 }

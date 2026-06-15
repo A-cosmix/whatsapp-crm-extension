@@ -41,7 +41,7 @@ export function App() {
   const { reminders, loading: remindersLoading, createReminder, dismissReminder, snoozeReminder } =
     useReminders();
 
-  const { campaigns, loading: campaignsLoading, createCampaign, pauseCampaign, cancelCampaign } =
+  const { campaigns, loading: campaignsLoading, createCampaign, pauseCampaign, cancelCampaign, resumeCampaign } =
     useCampaigns();
 
   const { items: reviewItems, loading: reviewLoading, approve, reject } = useReviewQueue();
@@ -226,6 +226,7 @@ export function App() {
               loading={campaignsLoading}
               onPause={pauseCampaign}
               onCancel={cancelCampaign}
+              onResume={resumeCampaign}
             />
           </div>
         )}

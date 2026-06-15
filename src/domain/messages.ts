@@ -34,6 +34,7 @@ export interface LeadsSyncPayload {
     chatId: string;
     tags: string[];
     updatedAt: number;
+    autoReplyEnabled?: boolean;
   }>;
 }
 
@@ -66,11 +67,13 @@ export interface WhatsAppActionRequest {
     | 'getActiveChat'
     | 'getContact'
     | 'isConnected'
-    | 'openChat';
+    | 'openChat'
+    | 'scrapePhone';
   chatId?: string;
   text?: string;
   limit?: number;
   phone?: string;
+  name?: string;
 }
 
 export interface WhatsAppActionResponse {
