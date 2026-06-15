@@ -1,0 +1,120 @@
+---
+description: Domain layer rules — entities, value objects, interfaces
+globs: src/domain/**/*
+alwaysApply: false
+---
+
+# Domain Layer Rules
+
+## Purpose
+
+Pure business logic with ZERO framework dependencies.
+
+## Allowed Imports
+
+- Other `src/domain/` modules
+- Standard library only (no npm packages except utility types if absolutely needed)
+
+## Forbidden Imports
+
+- `chrome.*`
+- `react`, `react-dom`
+- `dexie`, `idb`
+- `fetch`, `XMLHttpRequest`
+- DOM APIs (`document`, `window`)
+
+## Entity Rules
+
+- Entities have identity (`id` field) and lifecycle methods
+- Use factory functions or static `create()` methods for construction
+- Validate invariants in constructor/factory (throw `DomainError`)
+- Entities are mutable only through explicit methods (e.g., `lead.changeStage()`)
+
+```typescript
+// ✅ Good
+class Lead {
+  changeStage(newStage: LeadStage): void {
+    if (!isValidTransition(this.stage, newStage)) {
+      throw new DomainError(`Invalid transition: ${this.stage} → ${newStage}`);
+    }
+    this.stage = newStage;
+    this.updatedAt = Date.now();
+  }
+}
+
+// ❌ Bad — direct property mutation from outside
+lead.stage = 'won';
+```
+
+## Value Object Rules
+
+- Immutable (readonly properties)
+- Equality by value, not reference
+- Self-validating in constructor
+
+```typescript
+// ✅ Good
+class PhoneNumber {
+  readonly value: string;
+  constructor(raw: string) {
+    const normalized = normalizeE164(raw);
+    if (!isValidE164(normalized)) throw new DomainError('Invalid phone');
+    this.value = normalized;
+  }
+  equals(other: PhoneNumber): boolean {
+    return this.value === other.value;
+  }
+}
+```
+
+## Repository Interfaces
+
+- Define in `src/domain/repositories/`
+- Return domain entities, never raw DB rows
+- Use case-specific query methods, not generic CRUD
+
+```typescript
+interface ILeadRepository {
+  findById(id: string): Promise<Lead | null>;
+  findByPhone(phone: PhoneNumber): Promise<Lead | null>;
+  findByStage(stage: LeadStage): Promise<Lead[]>;
+  save(lead: Lead): Promise<void>;
+  delete(id: string): Promise<void>;
+}
+```
+
+## Service Interfaces
+
+- Define in `src/domain/services/`
+- One interface per capability (Interface Segregation)
+
+```typescript
+interface IMessageSender {
+  send(chatId: string, text: string): Promise<SendResult>;
+}
+
+interface IMessageReader {
+  getRecentMessages(chatId: string, limit: number): Promise<ConversationMessage[]>;
+}
+```
+
+## Agent Interfaces
+
+- Each agent owns ONE decision surface
+- Return typed handoff contracts with confidence + rationale
+
+```typescript
+interface AgentHandoff<T> {
+  contractVersion: '1.0';
+  agentId: string;
+  confidence: number;
+  rationale: string;
+  payload: T;
+  provenance: 'user' | 'prospect' | 'system';
+}
+```
+
+## Error Handling
+
+- Use `DomainError` class for business rule violations
+- Never catch and swallow in domain — let application layer handle

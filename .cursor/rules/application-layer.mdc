@@ -1,0 +1,76 @@
+---
+description: Application layer rules — use cases and DTOs
+globs: src/application/**/*
+alwaysApply: false
+---
+
+# Application Layer Rules
+
+## Purpose
+
+Orchestrate domain logic to fulfill user actions. Each use case = one user intent.
+
+## Structure
+
+```
+src/application/
+├── use-cases/
+│   ├── create-lead.use-case.ts
+│   ├── send-auto-reply.use-case.ts
+│   ├── execute-campaign-step.use-case.ts
+│   └── create-reminder.use-case.ts
+└── dto/
+    ├── create-lead.dto.ts
+    └── auto-reply-result.dto.ts
+```
+
+## Use Case Pattern
+
+```typescript
+export class CreateLeadUseCase {
+  constructor(
+    private readonly leadRepo: ILeadRepository,
+    private readonly messageBus: IMessageBus,
+  ) {}
+
+  async execute(input: CreateLeadDto): Promise<Lead> {
+    const phone = new PhoneNumber(input.phone);
+    const existing = await this.leadRepo.findByPhone(phone);
+    if (existing) throw new ApplicationError('Lead already exists');
+
+    const lead = Lead.create({ phone, name: input.name, chatId: input.chatId });
+    await this.leadRepo.save(lead);
+    await this.messageBus.publish('LEAD_CREATED', { leadId: lead.id });
+    return lead;
+  }
+}
+```
+
+## Rules
+
+1. **One use case = one action.** No `LeadManager` god class.
+2. **Constructor injection only.** All dependencies via constructor parameters typed as interfaces.
+3. **DTOs for input/output.** Never pass raw request objects into use cases.
+4. **Validate DTOs with Zod** at the application boundary (in entrypoint or controller).
+5. **Use cases do NOT know about Chrome, React, or HTTP.** They publish events via `IMessageBus`.
+6. **Return domain entities or result DTOs**, not infrastructure types.
+7. **Transactions:** If multiple repo writes needed, use `IUnitOfWork` interface.
+
+## Error Handling
+
+- Catch `DomainError` → map to `ApplicationError` with user-friendly message
+- Never expose internal errors to UI
+- Log errors with context (use case name, input summary)
+
+## Naming Convention
+
+- Class: `{Verb}{Noun}UseCase` (e.g., `SendAutoReplyUseCase`)
+- Method: `execute(input: XxxDto): Promise<XxxResult>`
+- File: `{verb}-{noun}.use-case.ts`
+
+## Testing
+
+- Mock all interfaces (repositories, services, message bus)
+- Test happy path + key error paths
+- Verify domain invariants are enforced
+- Verify events are published

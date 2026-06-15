@@ -1,0 +1,93 @@
+---
+description: UI and presentation layer rules — React components, content scripts
+globs: src/ui/**/*,src/content/**/*
+alwaysApply: false
+---
+
+# Presentation Layer Rules
+
+## Purpose
+
+Render UI and handle user interactions. Delegate ALL business logic to use cases.
+
+## Structure
+
+```
+src/ui/
+├── components/       # Reusable UI components
+│   ├── LeadCard.tsx
+│   ├── LeadList.tsx
+│   └── CampaignBuilder.tsx
+├── hooks/            # Thin hooks that call use cases
+│   ├── use-leads.ts
+│   └── use-auto-reply.ts
+├── pages/            # Route-level components
+│   ├── LeadsPage.tsx
+│   └── SettingsPage.tsx
+└── stores/           # UI-only state (Zustand)
+    └── ui-store.ts
+
+src/content/
+├── observer.ts       # MutationObserver for new messages
+├── injector.ts       # Sidebar/panel injection into WhatsApp DOM
+└── bridge.ts         # postMessage bridge to injected script
+```
+
+## Component Rules
+
+1. **Components are dumb.** Receive props, emit events. No direct repo/LLM calls.
+2. **Hooks bridge UI ↔ use cases.** Hooks receive use case instances via context or props.
+3. **No business logic in JSX.** Extract to hooks or use cases.
+4. **Use Tailwind CSS** for styling. No inline styles.
+5. **Accessible:** proper ARIA labels, keyboard navigation.
+
+```typescript
+// ✅ Good — hook delegates to use case
+function useLeads(createLead: CreateLeadUseCase) {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const addLead = async (dto: CreateLeadDto) => {
+    const lead = await createLead.execute(dto);
+    setLeads(prev => [...prev, lead]);
+  };
+  return { leads, addLead };
+}
+
+// ❌ Bad — business logic in component
+function LeadForm() {
+  const handleSubmit = async (data) => {
+    const phone = normalizePhone(data.phone);  // domain logic in UI!
+    await db.leads.add({ ... });               // infrastructure in UI!
+  };
+}
+```
+
+## Content Script Rules
+
+- Content scripts ONLY observe DOM and relay events to service worker
+- Use `window.postMessage` to communicate with injected script (page world)
+- Use `chrome.runtime.sendMessage` to communicate with service worker
+- Never perform AI inference or DB writes in content script
+- Inject UI elements (sidebar) via Shadow DOM for style isolation
+
+## Message Flow
+
+```
+User clicks "Create Lead" in Side Panel
+  → Hook calls CreateLeadUseCase.execute()
+  → Use case saves via ILeadRepository
+  → Use case publishes LEAD_CREATED via IMessageBus
+  → ChromeMessageBus sends to all contexts
+  → UI hook receives event, updates local state
+```
+
+## State Management
+
+- **UI state** (modals open, selected tab): Zustand store in `src/ui/stores/`
+- **Business data** (leads, campaigns): Fetched via use cases, not stored in global state
+- **Extension settings**: `chrome.storage.local` accessed via infrastructure adapter
+
+## Testing
+
+- Component tests with Vitest + React Testing Library
+- Test user interactions, not implementation details
+- Mock use case dependencies

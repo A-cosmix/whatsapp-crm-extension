@@ -1,0 +1,117 @@
+---
+description: Infrastructure layer rules — adapters, storage, external services
+globs: src/infrastructure/**/*
+alwaysApply: false
+---
+
+# Infrastructure Layer Rules
+
+## Purpose
+
+Implement domain interfaces with concrete technologies (Dexie, Ollama, Chrome APIs, DOM).
+
+## Structure
+
+```
+src/infrastructure/
+├── storage/
+│   ├── dexie-storage.ts
+│   ├── dexie-lead-repository.ts
+│   └── mappers/              # DB row ↔ Domain entity
+├── whatsapp/
+│   ├── dom-whatsapp-adapter.ts
+│   ├── store-whatsapp-adapter.ts
+│   └── whatsapp-adapter-factory.ts
+├── llm/
+│   ├── ollama-provider.ts
+│   ├── web-llm-provider.ts
+│   └── cloud-api-provider.ts
+├── messaging/
+│   └── chrome-message-bus.ts
+└── agents/
+    ├── reply-triage-agent.ts
+    └── lead-scoring-agent.ts
+```
+
+## Adapter Pattern (MANDATORY)
+
+Every external system gets an adapter implementing a domain interface:
+
+```typescript
+// Domain defines contract
+interface IWhatsAppAdapter extends IMessageSender, IMessageReader, IContactReader {}
+
+// Infrastructure implements
+export class DomWhatsAppAdapter implements IWhatsAppAdapter {
+  async send(chatId: string, text: string): Promise<SendResult> {
+    // DOM manipulation here — NEVER in domain/application
+  }
+}
+```
+
+## Mapper Pattern
+
+Convert between infrastructure types and domain entities in dedicated mapper files:
+
+```typescript
+// src/infrastructure/storage/mappers/lead.mapper.ts
+export function toDomain(row: LeadRow): Lead { ... }
+export function toRow(lead: Lead): LeadRow { ... }
+```
+
+Mappers are pure functions. No side effects.
+
+## Zod Validation at Boundaries
+
+Validate ALL external data before mapping to domain:
+
+```typescript
+const OllamaResponseSchema = z.object({
+  response: z.string(),
+  done: z.boolean(),
+});
+
+const parsed = OllamaResponseSchema.safeParse(rawJson);
+if (!parsed.success) throw new InfrastructureError('Invalid LLM response');
+```
+
+## Chrome API Usage
+
+- All `chrome.*` calls live ONLY in infrastructure or entrypoints
+- Wrap chrome APIs in small utility classes (e.g., `ChromeAlarmScheduler`, `ChromeNotifier`)
+- Handle service worker lifecycle: persist state, re-register alarms on startup
+
+## LLM Provider Implementation
+
+```typescript
+export class OllamaProvider implements ILLMProvider {
+  constructor(private readonly baseUrl: string) {}
+
+  async *generate(request: LLMRequest): AsyncIterable<string> {
+    const response = await fetch(`${this.baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: request.model, prompt: request.prompt, stream: true }),
+    });
+    // Parse and yield chunks with Zod validation
+  }
+}
+```
+
+## WhatsApp Safety in Adapters
+
+- `send()` must include configurable delay before actual send
+- Check connection state before send; return `SendResult` with error, don't throw
+- Rate limit tracking in adapter (messages sent in last hour/day)
+
+## Error Handling
+
+- Use `InfrastructureError` for external system failures
+- Include retry metadata where applicable
+- Never let raw fetch/chrome errors propagate to application layer
+
+## Testing
+
+- Use fake/in-memory implementations for unit tests
+- Integration tests with real Dexie (fake-indexeddb)
+- Mock fetch for LLM provider tests

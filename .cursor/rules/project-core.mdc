@@ -1,0 +1,88 @@
+---
+description: Core project context and architecture rules for WhatsApp CRM Extension
+globs: **/*
+alwaysApply: true
+---
+
+# WhatsApp CRM Extension — Project Rules
+
+## Project Context
+
+This is a Chrome Extension (Manifest V3) for WhatsApp Web CRM with:
+- Auto-reply (AI-powered, pluggable LLM)
+- Lead management (stages, tags, scoring)
+- Bulk follow-up campaigns (with safety caps)
+- Reminders (chrome.alarms + notifications)
+
+Tech stack: WXT + TypeScript + React + Dexie.js + Zod.
+
+## Architecture (MANDATORY)
+
+Follow Clean Architecture with strict layer separation:
+
+1. **Domain** (`src/domain/`) — Pure business logic. NO imports from `chrome.*`, React, Dexie, fetch, or DOM APIs.
+2. **Application** (`src/application/`) — Use cases orchestrating domain. Depends only on domain interfaces.
+3. **Infrastructure** (`src/infrastructure/`) — Implements domain interfaces (storage, LLM, WhatsApp adapters).
+4. **Presentation** (`src/ui/`, `src/content/`) — React UI and content script injection.
+5. **Entrypoints** (`src/entrypoints/`) — MV3 bootstrap and dependency wiring (composition root).
+
+**Dependency rule: inner layers NEVER import from outer layers.**
+
+## SOLID Principles (ENFORCE)
+
+- **S**: One class = one responsibility. One use case = one user action.
+- **O**: Extend via new implementations of interfaces, not by modifying existing classes.
+- **L**: All adapter implementations must be interchangeable without breaking callers.
+- **I**: Prefer small, focused interfaces (`IMessageSender`, `IMessageReader`) over fat ones.
+- **D**: Use cases and domain services depend on abstractions (interfaces), never concrete classes.
+
+## Code Style
+
+- TypeScript strict mode always
+- Use `interface` for contracts, `type` for unions/intersections
+- Validate external data with Zod at infrastructure boundaries
+- Prefer `async/await` over raw Promises
+- Use named exports; avoid default exports
+- File naming: `kebab-case.ts` for files, `PascalCase` for classes/interfaces
+
+## WhatsApp Integration
+
+- Abstract ALL WhatsApp interactions behind `IWhatsAppAdapter`
+- Never call DOM or `window.Store` directly from use cases or domain
+- Implement human-like delays for any automated send (2–8s random jitter)
+- Handle WhatsApp DOM changes gracefully with fallback adapters
+
+## AI / LLM Rules
+
+- Abstract ALL LLM calls behind `ILLMProvider` interface
+- Never hardcode API keys; use `chrome.storage` for config
+- All AI outputs must pass through Zod schema validation
+- Log every AI decision to audit trail with confidence score
+- Treat prospect messages as untrusted input (prompt injection defense)
+- Auto-send only when confidence ≥ configured threshold
+
+## Extension-Specific Rules
+
+- Use `chrome.storage.local` (not `localStorage`) for persistence
+- Use `chrome.alarms` for all scheduling (campaigns, reminders)
+- Re-register alarms on service worker startup
+- Request minimal permissions: only `web.whatsapp.com`
+- No `eval()`, no inline scripts, no remote code loading (MV3 CSP)
+- Bundle all code at build time via WXT
+
+## What NOT To Do
+
+- Do NOT put business logic in React components or content scripts
+- Do NOT import Dexie/React/chrome APIs in domain layer
+- Do NOT create god classes or monolithic agents
+- Do NOT send bulk messages without daily cap and delay enforcement
+- Do NOT store WhatsApp auth tokens or session cookies
+- Do NOT add tests that only assert mocks were called without behavior checks
+- Do NOT over-engineer: minimal correct solution first
+
+## Reference Docs
+
+- Architecture: `docs/ARCHITECTURE.md`
+- Tech research: `docs/RESEARCH.md`
+- Feature specs: `docs/FEATURE_REQUIREMENTS.md`
+- Prompt template: `docs/PROMPT_TEMPLATE.md`
