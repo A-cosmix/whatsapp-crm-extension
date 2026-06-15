@@ -2,63 +2,87 @@
 
 Chrome Extension (Manifest V3) for WhatsApp Web — CRM with AI-powered auto-reply, lead management, bulk follow-up, and reminders.
 
+## Quick Start
+
+```bash
+npm install
+npm run dev          # Dev mode with HMR — load .output/chrome-mv3 in Chrome
+npm run build        # Production build
+npm test             # Unit tests
+```
+
+### Load in Chrome
+
+1. Open `chrome://extensions`
+2. Enable **Developer mode**
+3. Click **Load unpacked** → select `.output/chrome-mv3`
+4. Open [web.whatsapp.com](https://web.whatsapp.com)
+5. Click the extension icon to open the **side panel**
+
+### AI Auto-Reply (Ollama)
+
+```bash
+# Install Ollama, then pull a model
+ollama pull llama3.2:3b
+ollama serve
+```
+
+Enable auto-reply per lead via the **AI Reply** button in the side panel.
+
+## MVP Features (Phase 1)
+
+| Feature | Status |
+|---|---|
+| Lead management (stages, tags, search) | ✅ |
+| Reminders (chrome.alarms + notifications) | ✅ |
+| AI auto-reply (Ollama, per-chat toggle) | ✅ |
+| Content script message detection | ✅ |
+| Bulk follow-up campaigns | 🔜 Phase 2 |
+
+## Architecture
+
+```
+Presentation (React side panel, content script)
+    ↓
+Application (Use Cases)
+    ↓
+Domain (Entities, Interfaces) ← Infrastructure (Dexie, Ollama, Chrome APIs)
+```
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full details.
+
 ## Documentation
 
 | Document | Description |
 |---|---|
 | [Research (2026 Tech)](docs/RESEARCH.md) | MV3, AI Agents, Local LLM analysis |
-| [Feature Requirements](docs/FEATURE_REQUIREMENTS.md) | Auto-reply, leads, bulk follow-up, reminders specs |
-| [Architecture](docs/ARCHITECTURE.md) | Clean Architecture layers, SOLID mapping |
-| [Prompt Template](docs/PROMPT_TEMPLATE.md) | Master Cursor prompt with all rules |
+| [Feature Requirements](docs/FEATURE_REQUIREMENTS.md) | Detailed feature specs |
+| [Architecture](docs/ARCHITECTURE.md) | Clean Architecture + SOLID |
+| [Prompt Template](docs/PROMPT_TEMPLATE.md) | Cursor AI master prompt |
 
 ## Cursor Rules
 
-AI coding rules in `.cursor/rules/` enforce clean architecture:
+AI coding rules in `.cursor/rules/` enforce clean architecture during development.
 
-- `project-core.mdc` — Project context, SOLID, MV3 constraints
-- `domain-layer.mdc` — Pure domain logic rules
-- `application-layer.mdc` — Use case patterns
-- `infrastructure-layer.mdc` — Adapter and mapper patterns
-- `presentation-layer.mdc` — React UI rules
-- `ai-agents.mdc` — Agent supervisor pattern, LLM safety
-
-## Quick Start (Development)
-
-```bash
-# 1. Install dependencies (when scaffold is added)
-npm install
-
-# 2. Start dev server
-npm run dev
-
-# 3. Load extension in Chrome
-#    chrome://extensions → Developer mode → Load unpacked → .output/chrome-mv3
-```
-
-## Architecture Overview
+## Project Structure
 
 ```
-Presentation (React UI, Content Scripts)
-    ↓
-Application (Use Cases)
-    ↓
-Domain (Entities, Interfaces) ← Infrastructure (Adapters, Storage, LLM)
+src/
+├── domain/           # Pure business logic (no framework imports)
+├── application/      # Use cases
+├── infrastructure/   # Dexie, Ollama, Chrome adapters
+├── ui/               # React components + hooks
+└── entrypoints/      # background.ts, content.ts, sidepanel/
 ```
 
-## Tech Stack (Planned)
+## Tech Stack
 
-- **WXT** + TypeScript + React
+- **WXT** + TypeScript + React 19
 - **Dexie.js** (IndexedDB)
 - **Zod** (validation)
-- **Ollama** / WebLLM (local AI)
 - **Tailwind CSS** (UI)
-
-## MVP Features (Phase 1)
-
-1. Lead capture and stage management
-2. Reminders with Chrome notifications
-3. Basic AI auto-reply (Ollama)
-4. Single-step bulk follow-up with safety caps
+- **Ollama** (local LLM)
+- **Vitest** (tests)
 
 ## License
 

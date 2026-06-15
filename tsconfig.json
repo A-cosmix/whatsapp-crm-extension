@@ -1,0 +1,15 @@
+{
+  "extends": "./.wxt/tsconfig.json",
+  "compilerOptions": {
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@domain/*": ["src/domain/*"],
+      "@application/*": ["src/application/*"],
+      "@infrastructure/*": ["src/infrastructure/*"],
+      "@ui/*": ["src/ui/*"]
+    }
+  },
+  "include": ["src/**/*", "wxt.config.ts"],
+  "exclude": ["node_modules", ".output"]
+}
