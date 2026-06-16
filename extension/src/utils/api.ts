@@ -6,6 +6,7 @@
 import { z } from 'zod';
 import type {
   ApiError,
+  ApiRequestType,
   ApiUsageStats,
   EmailAnalysis,
   ParsedEmail,
@@ -14,6 +15,7 @@ import type {
   UserPreferences,
 } from '@/types';
 import { DEFAULT_PREFERENCES } from '@/types';
+import { getApiUsageStats, logApiRequest } from '@/utils/api-usage';
 import { hashBody } from '@/utils/storage';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
@@ -146,7 +148,9 @@ export async function callClaudeApi(
   apiKey: string,
   prompt: string,
   maxTokens = 500,
+  requestType: ApiRequestType = 'other',
 ): Promise<{ text: string; usage: { input_tokens: number; output_tokens: number } }> {
+  const start = Date.now();
   let response: Response;
 
   try {
@@ -168,16 +172,38 @@ export async function callClaudeApi(
       REQUEST_TIMEOUT_MS,
     );
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      throw { code: 'TIMEOUT', message: 'Request timed out after 10 seconds.' } satisfies ApiError;
-    }
-    throw { code: 'NETWORK', message: 'Network error. Check your connection.' } satisfies ApiError;
+    const apiErr =
+      err instanceof DOMException && err.name === 'AbortError'
+        ? ({ code: 'TIMEOUT', message: 'Request timed out after 10 seconds.' } satisfies ApiError)
+        : ({ code: 'NETWORK', message: 'Network error. Check your connection.' } satisfies ApiError);
+
+    await logApiRequest({
+      requestType,
+      inputTokens: 0,
+      outputTokens: 0,
+      success: false,
+      errorCode: apiErr.code,
+      durationMs: Date.now() - start,
+      model: MODEL,
+    });
+    throw apiErr;
   }
 
   const body = await response.text();
+  const durationMs = Date.now() - start;
 
   if (!response.ok) {
-    throw parseApiError(response.status, body);
+    const apiErr = parseApiError(response.status, body);
+    await logApiRequest({
+      requestType,
+      inputTokens: 0,
+      outputTokens: 0,
+      success: false,
+      errorCode: apiErr.code,
+      durationMs,
+      model: MODEL,
+    });
+    throw apiErr;
   }
 
   const parsed = JSON.parse(body) as {
@@ -187,6 +213,15 @@ export async function callClaudeApi(
 
   const text = parsed.content.find((c) => c.type === 'text')?.text ?? '';
   const usage = parsed.usage ?? { input_tokens: 0, output_tokens: 0 };
+
+  await logApiRequest({
+    requestType,
+    inputTokens: usage.input_tokens,
+    outputTokens: usage.output_tokens,
+    success: true,
+    durationMs,
+    model: MODEL,
+  });
 
   return { text, usage };
 }
@@ -201,7 +236,7 @@ export async function validateApiKey(apiKey: string): Promise<{
   }
 
   try {
-    const { usage } = await callClaudeApi(apiKey, 'Reply with exactly: OK', 10);
+    const { usage } = await callClaudeApi(apiKey, 'Reply with exactly: OK', 10, 'validate');
     return { valid: true, usage };
   } catch (err) {
     return { valid: false, error: err as ApiError };
@@ -213,9 +248,9 @@ export async function analyzeEmail(
   preferences: UserPreferences,
 ): Promise<EmailAnalysis> {
   const prompt = buildAnalysisPrompt(email, preferences.summaryLength);
-  const { text, usage } = await callClaudeApi(preferences.apiKey, prompt, 800);
+  const { text, usage } = await callClaudeApi(preferences.apiKey, prompt, 800, 'analyze');
 
-  await updateApiUsage(usage.input_tokens, usage.output_tokens);
+  void usage; // logged via logApiRequest in callClaudeApi
 
   let parsed: AnalysisResult;
   try {
@@ -289,35 +324,12 @@ ${emailSummaries.slice(0, 15000)}
 
 Format as a clean, readable email draft the user can send to themselves.`;
 
-  const { text } = await callClaudeApi(apiKey, prompt, 1500);
+  const { text } = await callClaudeApi(apiKey, prompt, 1500, 'digest');
   return text;
 }
 
-const USAGE_STORAGE_KEY = 'apiUsageStats';
-
 export async function getApiUsage(): Promise<ApiUsageStats> {
-  const result = await chrome.storage.local.get(USAGE_STORAGE_KEY);
-  return (
-    (result[USAGE_STORAGE_KEY] as ApiUsageStats) ?? {
-      lastInputTokens: 0,
-      lastOutputTokens: 0,
-      totalInputTokens: 0,
-      totalOutputTokens: 0,
-      lastRequestAt: 0,
-    }
-  );
-}
-
-async function updateApiUsage(inputTokens: number, outputTokens: number): Promise<void> {
-  const current = await getApiUsage();
-  const updated: ApiUsageStats = {
-    lastInputTokens: inputTokens,
-    lastOutputTokens: outputTokens,
-    totalInputTokens: current.totalInputTokens + inputTokens,
-    totalOutputTokens: current.totalOutputTokens + outputTokens,
-    lastRequestAt: Date.now(),
-  };
-  await chrome.storage.local.set({ [USAGE_STORAGE_KEY]: updated });
+  return getApiUsageStats();
 }
 
 export async function getPreferences(): Promise<UserPreferences> {

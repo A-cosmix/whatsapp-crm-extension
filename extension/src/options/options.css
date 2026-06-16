@@ -59,3 +59,15 @@ html.dark body {
 .toggle.on::after {
   transform: translateX(20px);
 }
+
+.stat-card {
+  @apply p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/80;
+}
+
+.chart-bar-in {
+  @apply bg-blue-500 dark:bg-blue-600 rounded-t;
+}
+
+.chart-bar-out {
+  @apply bg-violet-500 dark:bg-violet-600 rounded-t;
+}

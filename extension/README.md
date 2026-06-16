@@ -15,7 +15,8 @@ A production-ready Chrome extension (Manifest V3) that uses Claude AI to summari
 - **Sidebar Filters** — Filter by priority, search summarized content
 - **Offline Cache** — IndexedDB cache with 30-day auto-expiry
 - **Onboarding Tutorial** — 6-step setup wizard plus in-page Gmail/Outlook tour on first visit
-- **Usage Analytics** — Local feature usage tracking with dashboard (privacy-first, no external telemetry)
+- **Admin Dashboard** — Monitor API token usage, costs, errors, and request history
+- **Usage Analytics** — Local feature usage tracking (privacy-first, no external telemetry)
 - **Keyboard Shortcuts** — Customizable shortcuts for summarize, toggle panel, smart reply, and quick snooze
 
 ## Tech Stack

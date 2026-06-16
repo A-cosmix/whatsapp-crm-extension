@@ -12,6 +12,10 @@ import {
   validateApiKey,
 } from '@/utils/api';
 import {
+  clearApiLogs,
+  getApiUsageDashboard,
+} from '@/utils/api-usage';
+import {
   cacheAnalysis,
   deleteSnooze,
   getAllAnalyses,
@@ -309,6 +313,15 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
     case 'GET_API_USAGE':
       return getApiUsage();
+
+    case 'GET_API_DASHBOARD': {
+      const { periodDays } = (message.payload as { periodDays?: number }) ?? {};
+      return getApiUsageDashboard(periodDays ?? 30);
+    }
+
+    case 'CLEAR_API_LOGS':
+      await clearApiLogs();
+      return true;
 
     case 'SEARCH_SUMMARIES': {
       const { query } = message.payload as { query: string };

@@ -131,6 +131,18 @@ export function Popup(): React.ReactElement {
             ✨ Email Summarizer
           </h1>
           <div className="flex items-center gap-1">
+            <button
+              onClick={() =>
+                chrome.tabs.create({
+                  url: chrome.runtime.getURL('src/options/options.html#admin'),
+                })
+              }
+              className="text-xs p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded"
+              title="API Admin Dashboard"
+              aria-label="API Admin Dashboard"
+            >
+              📊
+            </button>
             <DarkModeToggle isDark={isDark} onToggle={toggleTheme} size="sm" />
             <button
               onClick={openOptions}

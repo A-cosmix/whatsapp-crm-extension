@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AdminDashboard } from '@/admin/AdminDashboard';
 import { DarkModeSwitch, DarkModeToggle } from '@/components/DarkModeToggle';
 import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ShortcutsSection } from '@/components/ShortcutRecorder';
@@ -28,8 +29,11 @@ const FEATURE_LABELS: Record<keyof FeatureToggles, string> = {
   weeklyDigest: 'Weekly Digest',
 };
 
+type OptionsTab = 'settings' | 'admin';
+
 export function Options(): React.ReactElement {
   const { isDark, darkMode, label, toggle: toggleTheme, useSystemTheme } = useTheme();
+  const [tab, setTab] = useState<OptionsTab>('settings');
   const [prefs, setPrefs] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -42,6 +46,10 @@ export function Options(): React.ReactElement {
   useEffect(() => {
     sendMessage<UserPreferences>('GET_PREFERENCES').then(setPrefs).catch(() => {});
     sendMessage<ApiUsageStats>('GET_API_USAGE').then(setUsage).catch(() => {});
+    if (window.location.hash === '#admin') setTab('admin');
+    const onHash = () => setTab(window.location.hash === '#admin' ? 'admin' : 'settings');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
   const save = useCallback(async (updated: UserPreferences) => {
@@ -134,8 +142,8 @@ export function Options(): React.ReactElement {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
-      <header className="mb-8 flex items-start justify-between">
+    <div className="max-w-6xl mx-auto px-6 py-8">
+      <header className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">✨ AI Email Summarizer</h1>
           <p className="text-sm text-slate-500 mt-1">Settings &amp; Configuration · v1.0.0</p>
@@ -143,7 +151,35 @@ export function Options(): React.ReactElement {
         <DarkModeToggle isDark={isDark} onToggle={toggleTheme} />
       </header>
 
-      {/* API Key */}
+      <nav className="flex gap-1 mb-6 p-1 rounded-lg bg-slate-100 dark:bg-slate-800 w-fit">
+        <button
+          type="button"
+          onClick={() => { setTab('settings'); window.location.hash = ''; }}
+          className={`px-4 py-2 text-sm rounded-md transition ${
+            tab === 'settings'
+              ? 'bg-white dark:bg-slate-900 shadow-sm font-medium'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          ⚙️ Settings
+        </button>
+        <button
+          type="button"
+          onClick={() => { setTab('admin'); window.location.hash = 'admin'; }}
+          className={`px-4 py-2 text-sm rounded-md transition ${
+            tab === 'admin'
+              ? 'bg-white dark:bg-slate-900 shadow-sm font-medium'
+              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+          }`}
+        >
+          📊 API Admin
+        </button>
+      </nav>
+
+      {tab === 'admin' ? (
+        <AdminDashboard embedded />
+      ) : (
+      <>
       <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
         <h2 className="text-lg font-semibold mb-3">Claude API Key</h2>
         <p className="text-sm text-slate-500 mb-3">
@@ -194,12 +230,15 @@ export function Options(): React.ReactElement {
           <div className="mt-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-400">
             <strong>API Usage:</strong> Last request — {usage.lastInputTokens} in /{' '}
             {usage.lastOutputTokens} out tokens · Total — {usage.totalInputTokens} in /{' '}
-            {usage.totalOutputTokens} out tokens
+            {usage.totalOutputTokens} out tokens · {usage.totalRequests ?? 0} requests
             <br />
-            <span className="text-slate-400">
-              Note: Credit balance is managed on your Anthropic console. Token counts are tracked
-              locally.
-            </span>
+            <button
+              type="button"
+              onClick={() => { window.location.hash = 'admin'; setTab('admin'); }}
+              className="text-brand-600 hover:underline mt-1"
+            >
+              Open Admin Dashboard for detailed monitoring →
+            </button>
           </div>
         )}
       </section>
@@ -415,6 +454,8 @@ export function Options(): React.ReactElement {
       <footer className="text-center text-xs text-slate-400 pb-8">
         AI Email Summarizer v1.0.0 · Customize shortcuts in settings above
       </footer>
+      </>
+      )}
     </div>
   );
 }

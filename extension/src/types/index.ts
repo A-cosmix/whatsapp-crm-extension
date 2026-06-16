@@ -102,6 +102,45 @@ export interface ApiUsageStats {
   totalInputTokens: number;
   totalOutputTokens: number;
   lastRequestAt: number;
+  totalRequests: number;
+  totalErrors: number;
+}
+
+export type ApiRequestType = 'analyze' | 'validate' | 'digest' | 'other';
+
+export interface ApiRequestLog {
+  id?: number;
+  timestamp: number;
+  requestType: ApiRequestType;
+  inputTokens: number;
+  outputTokens: number;
+  success: boolean;
+  errorCode?: string;
+  durationMs: number;
+  model: string;
+}
+
+export interface ApiUsageDashboard {
+  stats: ApiUsageStats;
+  periodDays: number;
+  totalRequests: number;
+  requestsToday: number;
+  tokensToday: number;
+  errorCount: number;
+  errorRate: number;
+  estimatedCostUsd: number;
+  estimatedCostTodayUsd: number;
+  avgDurationMs: number;
+  byDay: {
+    date: string;
+    inputTokens: number;
+    outputTokens: number;
+    requests: number;
+    errors: number;
+  }[];
+  byRequestType: { type: ApiRequestType; label: string; count: number; tokens: number }[];
+  recentLogs: ApiRequestLog[];
+  recentErrors: ApiRequestLog[];
 }
 
 export interface ParsedEmail {
@@ -125,6 +164,8 @@ export type MessageType =
   | 'CANCEL_SNOOZE'
   | 'GENERATE_WEEKLY_DIGEST'
   | 'GET_API_USAGE'
+  | 'GET_API_DASHBOARD'
+  | 'CLEAR_API_LOGS'
   | 'SEARCH_SUMMARIES'
   | 'GET_ALL_ANALYSES'
   | 'GET_ONBOARDING'
