@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#elw-root {
+  all: initial;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+#elw-root * {
+  box-sizing: border-box;
+}
+
+.elw-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.elw-glass-dark {
+  background: rgba(17, 24, 39, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.elw-gradient {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 50%, #075E54 100%);
+}
+
+.elw-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.elw-focus-mode {
+  max-width: 680px !important;
+  margin: 0 auto !important;
+  padding: 2rem !important;
+  font-family: Georgia, Merriweather, serif !important;
+  font-size: 18px !important;
+  line-height: 1.8 !important;
+}
+
+.elw-focus-mode-dark {
+  background: #1a1a2e !important;
+  color: #e0e0e0 !important;
+}
+
+.elw-focus-mode-sepia {
+  background: #f4ecd8 !important;
+  color: #5c4b37 !important;
+}
+
+.elw-hidden-distraction {
+  display: none !important;
+}
