@@ -40,7 +40,7 @@ import { ChromeDailySendTracker } from '@infrastructure/scheduling/daily-send-tr
 import { ChromeNotifier } from '@infrastructure/notifications/chrome-notifier';
 import { ChromeSettingsStore } from '@infrastructure/storage/chrome-settings-store';
 import { WebhookCrmSyncService } from '@infrastructure/crm/webhook-crm-sync';
-import { SettingsAwareOllamaProvider } from '@infrastructure/llm/settings-aware-ollama';
+import { SettingsAwareOllamaProvider, collectLLMResponse } from '@infrastructure/llm/settings-aware-ollama';
 import { ProxyWhatsAppAdapter } from '@infrastructure/whatsapp/proxy-whatsapp-adapter';
 import {
   RuleBasedTriageAgent,
@@ -87,6 +87,7 @@ export interface BackgroundApp {
   campaignRepo: DexieCampaignRepository;
   alarmScheduler: ChromeAlarmScheduler;
   settings: ChromeSettingsStore;
+  llm: SettingsAwareOllamaProvider;
 }
 
 export function createBackgroundApp(): BackgroundApp {
@@ -133,6 +134,7 @@ export function createBackgroundApp(): BackgroundApp {
     autoReplyRepo,
     leadRepo,
     whatsapp,
+    llm,
     triageAgent,
     outreachAgent,
     supervisor,
@@ -198,6 +200,7 @@ export function createBackgroundApp(): BackgroundApp {
     campaignRepo,
     alarmScheduler,
     settings,
+    llm,
   };
 }
 
@@ -347,10 +350,24 @@ export async function handleAutoReplyAlarm(app: BackgroundApp, chatId: string): 
   const payload = stored[storageKey] as PendingAutoReply | undefined;
   if (!payload) return;
 
+  const notifier = new ChromeNotifier();
+
   try {
-    await app.sendAutoReply.execute(payload);
+    const result = await app.sendAutoReply.execute(payload);
+    if (!result.sent && result.reason) {
+      console.warn('[CRM] Auto-reply skipped:', result.reason);
+      if (
+        result.reason.includes('Ollama') ||
+        result.reason.includes('WhatsApp') ||
+        result.reason.includes('AI reply failed')
+      ) {
+        await notifier.show('Auto-reply failed', result.reason);
+      }
+    }
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Auto-reply failed';
     console.error('[CRM] Auto-reply failed:', error);
+    await notifier.show('Auto-reply failed', message);
   } finally {
     await chrome.storage.session.remove(storageKey);
     await syncStateToUI(app);

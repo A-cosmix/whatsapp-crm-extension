@@ -182,6 +182,23 @@ export default defineBackground(() => {
         return app.updateCrmSync.execute(dto);
       }
 
+      case 'TEST_OLLAMA': {
+        const available = await app.llm.isAvailable();
+        if (!available) {
+          throw new Error(
+            'Cannot reach Ollama. Run `ollama serve` and set URL to http://localhost:11434 in Settings.',
+          );
+        }
+        const config = await app.settings.getAIConfig();
+        const reply = await collectLLMResponse(app.llm, {
+          model: config.ollamaModel,
+          prompt: 'Reply with exactly: OK',
+          maxTokens: 10,
+          temperature: 0,
+        });
+        return { ok: true, reply: reply.slice(0, 80) };
+      }
+
       case MessageTypes.MESSAGE_RECEIVED: {
         const payload = message.payload as {
           chatId: string;

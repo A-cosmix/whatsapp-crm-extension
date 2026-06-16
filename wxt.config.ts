@@ -18,7 +18,11 @@ export default defineConfig({
     name: 'WhatsApp CRM',
     description: 'CRM extension for WhatsApp Web — leads, reminders, AI auto-reply',
     permissions: ['storage', 'alarms', 'notifications', 'sidePanel', 'tabs'],
-    host_permissions: ['https://web.whatsapp.com/*', 'http://localhost:11434/*'],
+    host_permissions: [
+      'https://web.whatsapp.com/*',
+      'http://localhost:11434/*',
+      'http://127.0.0.1:11434/*',
+    ],
     action: {
       default_title: 'WhatsApp CRM',
       default_icon: {

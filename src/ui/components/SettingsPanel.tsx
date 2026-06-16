@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { AIConfig } from '@domain/messages';
 import type { CrmSyncConfig } from '@domain/services/crm-sync.interface';
+import { sendRuntimeMessage } from '../lib/messaging';
 
 interface SettingsPanelProps {
   ai: AIConfig | null;
@@ -19,7 +20,8 @@ export function SettingsPanel({ ai, crm, loading, saved, onSaveAI, onSaveCrm }: 
   const [dailyCap, setDailyCap] = useState(50);
   const [webhookUrl, setWebhookUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
-  const [crmEnabled, setCrmEnabled] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<string | null>(null);
+  const [testingOllama, setTestingOllama] = useState(false);
 
   useEffect(() => {
     if (ai) {
@@ -111,6 +113,32 @@ export function SettingsPanel({ ai, crm, loading, saved, onSaveAI, onSaveCrm }: 
         >
           Save AI Settings
         </button>
+        <button
+          type="button"
+          disabled={testingOllama}
+          onClick={async () => {
+            setOllamaStatus(null);
+            setTestingOllama(true);
+            try {
+              const result = await sendRuntimeMessage<{ ok: boolean; reply: string }>('TEST_OLLAMA');
+              setOllamaStatus(`Ollama connected ✓ Model replied: "${result.reply}"`);
+            } catch (err) {
+              setOllamaStatus(err instanceof Error ? err.message : 'Ollama test failed');
+            } finally {
+              setTestingOllama(false);
+            }
+          }}
+          className="crm-btn-secondary w-full"
+        >
+          {testingOllama ? 'Testing…' : 'Test Ollama Connection'}
+        </button>
+        {ollamaStatus && (
+          <p
+            className={`text-xs ${ollamaStatus.includes('connected') ? 'text-wa-green' : 'text-wa-danger'}`}
+          >
+            {ollamaStatus}
+          </p>
+        )}
       </div>
 
       <div className="crm-card space-y-3">

@@ -63,8 +63,24 @@ Agar last command mein files dikhen → Chrome mein load karo:
 | 2 | Lead par stage button → **Remind** | Reminders tab mein entry |
 | 3 | Leads select karo → Bulk tab → campaign banao | Campaign "running" dikhe |
 | 4 | Lead par **AI Reply** ON karo | Button "AI On" ho jaye |
-| 5 | Settings → Ollama URL save (agar AI chahiye) | `http://localhost:11434` |
-| 6 | Prospect message aaye (AI on) | Reply ya Review tab mein draft |
+| 5 | Settings → Ollama URL save + **Test Ollama Connection** | Green "connected" message |
+| 6 | Dusre phone se message bhejo (AI on) | Auto-reply ya Review tab mein draft |
+
+> **Important:** Auto-reply sirf **incoming** messages par chalta hai — apne aap ko message bhej kar test mat karo. Dusre number se ya kisi aur se message aane do.
+
+> **AI Reply ON** zaroori hai — bina iske koi reply nahi jayega.
+
+---
+
+## Auto-reply error fix
+
+| Problem | Fix |
+|---------|-----|
+| Error: Ollama not reachable | Terminal: `ollama serve` + `ollama pull llama3.2:3b` |
+| Reply nahi, Review tab khali | Lead par **AI Reply** ON karo pehle |
+| WhatsApp tab not ready | web.whatsapp.com refresh karo |
+| Settings mein 127.0.0.1 use karte ho | URL `http://localhost:11434` rakho |
+| Apna hi message bhej rahe ho test ke liye | Incoming message chahiye (dusra phone) |
 
 > **Note:** Bulk/AI ke liye WhatsApp tab open honi chahiye. Phone capture ke liye kabhi contact header click karke try karo.
 

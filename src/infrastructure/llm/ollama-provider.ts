@@ -38,7 +38,15 @@ export class OllamaProvider implements ILLMProvider {
     });
 
     if (!response.ok) {
-      throw new InfrastructureError(`Ollama request failed: ${response.status}`);
+      let detail = '';
+      try {
+        detail = await response.text();
+      } catch {
+        // ignore
+      }
+      throw new InfrastructureError(
+        `Ollama request failed (${response.status})${detail ? `: ${detail.slice(0, 120)}` : ''}`,
+      );
     }
 
     const reader = response.body?.getReader();

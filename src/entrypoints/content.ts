@@ -1,6 +1,7 @@
 import type { ConversationMessage, ContactInfo } from '@domain/services/interfaces';
 import type { WhatsAppActionRequest } from '@domain/messages';
 import { MessageTypes } from '@domain/messages';
+import { chatIdsMatch, normalizeChatId } from '@infrastructure/whatsapp/chat-id';
 
 const DEBOUNCE_MS = 500;
 const seenMessageIds = new Set<string>();
@@ -58,7 +59,9 @@ function extractPhoneFromText(text: string): string {
 }
 
 function getActiveChatId(): string {
-  return getActiveChatTitle().replace(/\s+/g, '_').toLowerCase();
+  const title = getActiveChatTitle();
+  const subtitle = getHeaderSubtitle();
+  return normalizeChatId(title, extractPhoneFromText(subtitle) || extractPhoneFromText(title));
 }
 
 function isGroupChat(): boolean {
@@ -126,7 +129,8 @@ async function ensureChatOpen(request: WhatsAppActionRequest): Promise<void> {
     await searchAndOpenChat(request.name);
     return;
   }
-  if (request.chatId && request.chatId !== getActiveChatId()) {
+  const activeChatId = getActiveChatId();
+  if (request.chatId && !chatIdsMatch(request.chatId, activeChatId)) {
     const titleGuess = request.chatId.replace(/_/g, ' ');
     await searchAndOpenChat(titleGuess);
   }
@@ -153,24 +157,40 @@ async function scrapePhoneFromContactInfo(): Promise<string> {
   return '';
 }
 
-function extractMessages(limit: number): ConversationMessage[] {
-  const containers = document.querySelectorAll(
-    '#main [data-testid="msg-container"], #main .message-in, #main .message-out',
+function getMessageContainers(): NodeListOf<Element> {
+  return document.querySelectorAll(
+    '#main [data-testid="msg-container"], #main [role="row"], #main .message-in, #main .message-out',
   );
+}
+
+function extractMessageText(container: Element): string {
+  const textEl =
+    container.querySelector('[data-testid="msg-text"] span') ??
+    container.querySelector('[data-testid="msg-text"]') ??
+    container.querySelector('.selectable-text span') ??
+    container.querySelector('.copyable-text span') ??
+    container.querySelector('[dir="ltr"] span');
+  return textEl?.textContent?.trim() ?? '';
+}
+
+function isOutgoingMessage(container: Element): boolean {
+  return (
+    container.classList.contains('message-out') ||
+    container.closest('.message-out') !== null ||
+    container.getAttribute('data-id')?.startsWith('true_') === true
+  );
+}
+
+function extractMessages(limit: number): ConversationMessage[] {
+  const containers = getMessageContainers();
   const messages: ConversationMessage[] = [];
   const chatId = getActiveChatId();
 
   containers.forEach((container, index) => {
-    const textEl =
-      container.querySelector('[data-testid="msg-text"] span') ??
-      container.querySelector('.selectable-text span') ??
-      container.querySelector('.copyable-text span');
-    const text = textEl?.textContent?.trim();
+    const text = extractMessageText(container);
     if (!text) return;
 
-    const isOutgoing =
-      container.classList.contains('message-out') ||
-      container.closest('.message-out') !== null;
+    const isOutgoing = isOutgoingMessage(container);
 
     messages.push({
       id: `${chatId}-${index}-${text.slice(0, 20)}`,
@@ -279,16 +299,20 @@ async function handleWhatsAppAction(request: WhatsAppActionRequest): Promise<unk
 
 function notifyIncomingMessage(text: string, messageId: string): void {
   const chatId = getActiveChatId();
-  chrome.runtime.sendMessage({
-    type: MessageTypes.MESSAGE_RECEIVED,
-    payload: {
-      chatId,
-      messageText: text,
-      messageId,
-      timestamp: Date.now(),
-      isGroup: isGroupChat(),
-    },
-  });
+  chrome.runtime
+    .sendMessage({
+      type: MessageTypes.MESSAGE_RECEIVED,
+      payload: {
+        chatId,
+        messageText: text,
+        messageId,
+        timestamp: Date.now(),
+        isGroup: isGroupChat(),
+      },
+    })
+    .catch(() => {
+      // Service worker may be restarting — alarm path will retry on next message
+    });
 }
 
 function observeMessages(): void {
@@ -304,20 +328,13 @@ function observeMessages(): void {
       lastChatId = chatId;
     }
 
-    const containers = document.querySelectorAll(
-      '#main [data-testid="msg-container"], #main .message-in',
-    );
+    const containers = getMessageContainers();
     const last = containers[containers.length - 1];
     if (!last) return;
 
-    const isOutgoing =
-      last.classList.contains('message-out') || last.closest('.message-out') !== null;
-    if (isOutgoing) return;
+    if (isOutgoingMessage(last)) return;
 
-    const textEl =
-      last.querySelector('[data-testid="msg-text"] span') ??
-      last.querySelector('.selectable-text span');
-    const text = textEl?.textContent?.trim();
+    const text = extractMessageText(last);
     if (!text) return;
 
     const messageId = `msg-${chatId}-${text.slice(0, 30)}-${containers.length}`;

@@ -1,4 +1,3 @@
-import { ApplicationError } from '@domain/errors';
 import { AutoReplyConfig } from '@domain/entities/auto-reply-config';
 import type { IAutoReplyRepository } from '@domain/repositories/auto-reply.repository';
 import type { ILeadRepository } from '@domain/repositories/lead.repository';
@@ -6,6 +5,7 @@ import type { ILLMProvider, IWhatsAppAdapter, IMessageBus } from '@domain/servic
 import type { ISettingsStore } from '@domain/services/platform.interfaces';
 import type { IReplyTriageAgent, IOutreachAgent, ISupervisorAgent } from '@domain/agents/agent.types';
 import { MessageTypes } from '@domain/messages';
+import { chatIdsMatch } from '@domain/value-objects/chat-id';
 import type { AddToReviewQueueUseCase } from './review-queue.use-cases';
 import type { SendAutoReplyDto } from '../dto';
 
@@ -32,6 +32,7 @@ export class SendAutoReplyUseCase {
     private readonly autoReplyRepo: IAutoReplyRepository,
     private readonly leadRepo: ILeadRepository,
     private readonly whatsapp: IWhatsAppAdapter,
+    private readonly llm: ILLMProvider,
     private readonly triageAgent: IReplyTriageAgent,
     private readonly outreachAgent: IOutreachAgent,
     private readonly supervisor: ISupervisorAgent,
@@ -41,7 +42,20 @@ export class SendAutoReplyUseCase {
   ) {}
 
   async execute(input: SendAutoReplyDto): Promise<{ sent: boolean; reason: string }> {
-    const config = await this.autoReplyRepo.findByChatId(input.chatId);
+    try {
+      return await this.executeInternal(input);
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : 'Auto-reply failed unexpectedly';
+      await this.failWithReview(input, reason, '', 0);
+      return { sent: false, reason };
+    }
+  }
+
+  private async executeInternal(
+    input: SendAutoReplyDto,
+  ): Promise<{ sent: boolean; reason: string }> {
+    const config = await this.resolveEnabledConfig(input.chatId);
     if (!config?.enabled) {
       return { sent: false, reason: 'Auto-reply disabled for this chat' };
     }
@@ -50,7 +64,7 @@ export class SendAutoReplyUseCase {
       return { sent: false, reason: 'Groups excluded from auto-reply' };
     }
 
-    const lead = await this.leadRepo.findByChatId(input.chatId);
+    const lead = await this.resolveLead(input.chatId);
     const sendOpts = { phone: lead?.phone, name: lead?.name };
 
     const triageHandoff = await this.triageAgent.triage(input.messageText, 'prospect');
@@ -74,18 +88,47 @@ export class SendAutoReplyUseCase {
       return { sent: false, reason: triageDecision.reason };
     }
 
-    const messages = await this.whatsapp.getRecentMessages(
-      input.chatId,
-      config.maxHistoryMessages,
-      sendOpts,
-    );
+    const ollamaReady = await this.llm.isAvailable();
+    if (!ollamaReady) {
+      const reason =
+        'Ollama is not reachable. Run `ollama serve` and check Settings → Ollama URL.';
+      await this.failWithReview(input, reason, '', 0, lead?.id);
+      return { sent: false, reason };
+    }
+
+    let messages;
+    try {
+      messages = await this.whatsapp.getRecentMessages(
+        input.chatId,
+        config.maxHistoryMessages,
+        sendOpts,
+      );
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : 'Could not read WhatsApp messages for this chat';
+      await this.failWithReview(input, reason, '', 0, lead?.id);
+      return { sent: false, reason };
+    }
+
     const context = messages.map((m) => `${m.role}: ${m.text}`).join('\n');
 
     const aiConfig = await this.settings.getAIConfig();
-    const outreachHandoff = await this.outreachAgent.draft(
-      context,
-      config.systemPrompt ?? aiConfig.systemPrompt,
-    );
+    let outreachHandoff;
+    try {
+      outreachHandoff = await this.outreachAgent.draft(
+        context,
+        config.systemPrompt ?? aiConfig.systemPrompt,
+      );
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? `AI reply failed: ${error.message}`
+          : 'AI reply failed — check Ollama model is installed';
+      await this.failWithReview(input, reason, '', 0, lead?.id);
+      return { sent: false, reason };
+    }
 
     const outreachDecision = await this.supervisor.evaluate(outreachHandoff);
     const threshold = Math.max(config.confidenceThreshold, aiConfig.autoReplyConfidenceThreshold);
@@ -111,7 +154,15 @@ export class SendAutoReplyUseCase {
 
     const connected = await this.whatsapp.isConnected();
     if (!connected) {
-      throw new ApplicationError('WhatsApp is not connected', 'WHATSAPP_DISCONNECTED');
+      const reason = 'WhatsApp is not connected — open web.whatsapp.com and refresh';
+      await this.failWithReview(
+        input,
+        reason,
+        outreachHandoff.payload.message,
+        outreachHandoff.confidence,
+        lead?.id,
+      );
+      return { sent: false, reason };
     }
 
     const result = await this.whatsapp.send(
@@ -120,7 +171,15 @@ export class SendAutoReplyUseCase {
       sendOpts,
     );
     if (!result.success) {
-      throw new ApplicationError(result.error ?? 'Failed to send message', 'SEND_FAILED');
+      const reason = result.error ?? 'Failed to send message';
+      await this.failWithReview(
+        input,
+        reason,
+        outreachHandoff.payload.message,
+        outreachHandoff.confidence,
+        lead?.id,
+      );
+      return { sent: false, reason };
     }
 
     await this.messageBus.publish(MessageTypes.AUTO_REPLY_SENT, {
@@ -129,5 +188,58 @@ export class SendAutoReplyUseCase {
     });
 
     return { sent: true, reason: 'Auto-reply sent' };
+  }
+
+  private async resolveEnabledConfig(chatId: string): Promise<AutoReplyConfig | null> {
+    const direct = await this.autoReplyRepo.findByChatId(chatId);
+    if (direct?.enabled) return direct;
+
+    const lead = await this.resolveLead(chatId);
+    if (lead) {
+      const byLeadChat = await this.autoReplyRepo.findByChatId(lead.chatId);
+      if (byLeadChat?.enabled) return byLeadChat;
+    }
+
+    const enabled = await this.autoReplyRepo.findAllEnabled();
+    for (const cfg of enabled) {
+      if (chatIdsMatch(cfg.chatId, chatId)) return cfg;
+      const cfgLead = await this.leadRepo.findByChatId(cfg.chatId);
+      if (cfgLead && chatIdsMatch(cfgLead.chatId, chatId)) return cfg;
+      if (cfgLead) {
+        const phoneKey = cfgLead.phone.replace(/\D/g, '');
+        if (phoneKey.length >= 10 && chatId.replace(/\D/g, '') === phoneKey) return cfg;
+      }
+    }
+
+    return direct;
+  }
+
+  private async resolveLead(chatId: string) {
+    const direct = await this.leadRepo.findByChatId(chatId);
+    if (direct) return direct;
+
+    const leads = await this.leadRepo.findAll();
+    return leads.find((lead) => chatIdsMatch(lead.chatId, chatId)) ?? null;
+  }
+
+  private async failWithReview(
+    input: SendAutoReplyDto,
+    reason: string,
+    draftMessage: string,
+    confidence: number,
+    leadId?: string,
+  ): Promise<void> {
+    await this.addToReviewQueue.execute({
+      chatId: input.chatId,
+      leadId,
+      prospectMessage: input.messageText,
+      draftMessage,
+      reason,
+      confidence,
+    });
+    await this.messageBus.publish(MessageTypes.AUTO_REPLY_FAILED, {
+      chatId: input.chatId,
+      reason,
+    });
   }
 }
