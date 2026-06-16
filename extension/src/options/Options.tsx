@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DarkModeSwitch, DarkModeToggle } from '@/components/DarkModeToggle';
+import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, FeatureToggles, SummaryLength, UserPreferences } from '@/types';
 import { DEFAULT_PREFERENCES } from '@/types';
 
@@ -24,6 +26,7 @@ const FEATURE_LABELS: Record<keyof FeatureToggles, string> = {
 };
 
 export function Options(): React.ReactElement {
+  const { isDark, darkMode, label, toggle: toggleTheme, useSystemTheme } = useTheme();
   const [prefs, setPrefs] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [apiKeyVisible, setApiKeyVisible] = useState(false);
   const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -94,9 +97,12 @@ export function Options(): React.ReactElement {
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-bold flex items-center gap-2">✨ AI Email Summarizer</h1>
-        <p className="text-sm text-slate-500 mt-1">Settings &amp; Configuration · v1.0.0</p>
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">✨ AI Email Summarizer</h1>
+          <p className="text-sm text-slate-500 mt-1">Settings &amp; Configuration · v1.0.0</p>
+        </div>
+        <DarkModeToggle isDark={isDark} onToggle={toggleTheme} />
       </header>
 
       {/* API Key */}
@@ -284,6 +290,32 @@ export function Options(): React.ReactElement {
         </div>
       </section>
 
+      {/* Appearance */}
+      <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+        <h2 className="text-lg font-semibold mb-3">Appearance</h2>
+        <DarkModeSwitch
+          isDark={isDark}
+          enabled={darkMode !== 'system'}
+          onToggle={toggleTheme}
+        />
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-sm text-slate-600 dark:text-slate-400">
+            Current: <strong>{label}</strong>
+          </span>
+          {darkMode !== 'system' ? (
+            <button
+              type="button"
+              onClick={useSystemTheme}
+              className="text-xs text-brand-600 hover:underline"
+            >
+              Use system theme
+            </button>
+          ) : (
+            <span className="text-xs text-slate-400">Auto-detects OS preference</span>
+          )}
+        </div>
+      </section>
+
       {/* Privacy */}
       <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
         <h2 className="text-lg font-semibold mb-3">Privacy &amp; Data</h2>
@@ -293,20 +325,6 @@ export function Options(): React.ReactElement {
           <li>No data is sent to third-party servers besides Anthropic.</li>
           <li>Your API key is stored in Chrome encrypted sync storage.</li>
         </ul>
-        <div className="mt-3">
-          <label className="text-sm block mb-1">Theme</label>
-          <select
-            value={prefs.darkMode}
-            onChange={(e) =>
-              save({ ...prefs, darkMode: e.target.value as UserPreferences['darkMode'] })
-            }
-            className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-900"
-          >
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-        </div>
       </section>
 
       <footer className="text-center text-xs text-slate-400 pb-8">

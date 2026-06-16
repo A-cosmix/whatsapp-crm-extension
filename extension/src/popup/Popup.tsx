@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { DarkModeToggle } from '@/components/DarkModeToggle';
+import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, EmailAnalysis, UserPreferences } from '@/types';
 import { PRIORITY_COLORS, SENTIMENT_EMOJI } from '@/types';
 
@@ -13,6 +15,7 @@ async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
 }
 
 export function Popup(): React.ReactElement {
+  const { isDark, toggle: toggleTheme } = useTheme();
   const [prefs, setPrefs] = useState<UserPreferences | null>(null);
   const [analyses, setAnalyses] = useState<EmailAnalysis[]>([]);
   const [usage, setUsage] = useState<ApiUsageStats | null>(null);
@@ -75,7 +78,10 @@ export function Popup(): React.ReactElement {
 
   if (!prefs?.apiKey) {
     return (
-      <div className="p-6 text-center">
+      <div className="p-6 text-center relative">
+        <div className="absolute top-3 right-3">
+          <DarkModeToggle isDark={isDark} onToggle={toggleTheme} size="sm" />
+        </div>
         <div className="text-4xl mb-3">✨</div>
         <h1 className="text-lg font-semibold mb-2">AI Email Summarizer</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
@@ -98,13 +104,16 @@ export function Popup(): React.ReactElement {
           <h1 className="text-sm font-semibold flex items-center gap-1.5">
             ✨ Email Summarizer
           </h1>
-          <button
-            onClick={openOptions}
-            className="text-xs text-brand-600 hover:underline"
-            aria-label="Settings"
-          >
-            ⚙️
-          </button>
+          <div className="flex items-center gap-1">
+            <DarkModeToggle isDark={isDark} onToggle={toggleTheme} size="sm" />
+            <button
+              onClick={openOptions}
+              className="text-xs text-brand-600 hover:underline p-1"
+              aria-label="Settings"
+            >
+              ⚙️
+            </button>
+          </div>
         </div>
         {usage && (
           <p className="text-xs text-slate-500 mt-1">

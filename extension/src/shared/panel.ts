@@ -11,6 +11,12 @@ import {
   SNOOZE_OPTIONS,
 } from '@/types';
 import { buildGoogleCalendarUrl } from '@/utils/parser';
+import {
+  isDarkModeActive,
+  loadDarkModeSetting,
+  toggleStoredDarkMode,
+  type DarkModeSetting,
+} from '@/utils/theme';
 
 type PanelState = 'loading' | 'success' | 'error' | 'cached';
 
@@ -23,10 +29,58 @@ interface PanelCallbacks {
 
 let panelHost: HTMLElement | null = null;
 let shadowRoot: ShadowRoot | null = null;
+let styleEl: HTMLStyleElement | null = null;
+let darkModeSetting: DarkModeSetting = 'system';
+
+interface LastPanelState {
+  state: PanelState;
+  analysis?: EmailAnalysis;
+  errorMessage?: string;
+  callbacks?: PanelCallbacks;
+}
+
+let lastPanelState: LastPanelState | null = null;
 
 function isDarkMode(): boolean {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return isDarkModeActive(darkModeSetting);
 }
+
+function refreshPanelStyles(): void {
+  if (styleEl) styleEl.textContent = getStyles();
+}
+
+function rerenderPanel(): void {
+  if (lastPanelState) {
+    showPanel(
+      lastPanelState.state,
+      lastPanelState.analysis,
+      lastPanelState.errorMessage,
+      lastPanelState.callbacks,
+    );
+  }
+}
+
+loadDarkModeSetting().then((setting) => {
+  darkModeSetting = setting;
+  refreshPanelStyles();
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'sync' || !changes.preferences) return;
+  const next = changes.preferences.newValue?.darkMode as DarkModeSetting | undefined;
+  if (next) {
+    darkModeSetting = next;
+    refreshPanelStyles();
+    rerenderPanel();
+  }
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (darkModeSetting === 'system') {
+    refreshPanelStyles();
+    rerenderPanel();
+  }
+});
 
 function getStyles(): string {
   const dark = isDarkMode();
@@ -59,6 +113,12 @@ function getStyles(): string {
       border-radius: 12px 12px 0 0;
     }
     .aes-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+    .aes-header-actions { display: flex; align-items: center; gap: 4px; }
+    .aes-theme-toggle {
+      background: none; border: none; cursor: pointer; font-size: 14px;
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .aes-theme-toggle:hover { background: ${dark ? '#334155' : '#e2e8f0'}; }
     .aes-close {
       background: none; border: none; cursor: pointer; font-size: 18px;
       color: ${dark ? '#94a3b8' : '#64748b'}; padding: 2px 6px; border-radius: 4px;
@@ -159,6 +219,7 @@ export function ensurePanel(): ShadowRoot {
 
   const style = document.createElement('style');
   style.textContent = getStyles();
+  styleEl = style;
   shadowRoot.appendChild(style);
 
   document.body.appendChild(panelHost);
@@ -171,6 +232,8 @@ export function showPanel(
   errorMessage?: string,
   callbacks?: PanelCallbacks,
 ): void {
+  lastPanelState = { state, analysis, errorMessage, callbacks };
+
   const root = ensurePanel();
   const existing = root.querySelector('.aes-panel');
   if (existing) existing.remove();
@@ -182,9 +245,13 @@ export function showPanel(
 
   const header = document.createElement('div');
   header.className = 'aes-header';
+  const dark = isDarkMode();
   header.innerHTML = `
     <span class="aes-title">✨ AI Summary</span>
-    <button class="aes-close" aria-label="Close panel">×</button>
+    <div class="aes-header-actions">
+      <button class="aes-theme-toggle" aria-label="Toggle dark mode" title="${dark ? 'Light mode' : 'Dark mode'}">${dark ? '☀️' : '🌙'}</button>
+      <button class="aes-close" aria-label="Close panel">×</button>
+    </div>
   `;
   panel.appendChild(header);
 
@@ -207,6 +274,12 @@ export function showPanel(
   header.querySelector('.aes-close')?.addEventListener('click', () => {
     panel.remove();
     callbacks?.onClose();
+  });
+
+  header.querySelector('.aes-theme-toggle')?.addEventListener('click', async () => {
+    darkModeSetting = await toggleStoredDarkMode();
+    refreshPanelStyles();
+    rerenderPanel();
   });
 
   body.querySelector('[data-action="retry"]')?.addEventListener('click', () => {
