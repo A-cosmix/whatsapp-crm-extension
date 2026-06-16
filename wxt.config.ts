@@ -7,34 +7,62 @@ export default defineConfig({
   vite: () => ({
     resolve: {
       alias: {
-        '@domain': resolve('src/domain'),
-        '@application': resolve('src/application'),
-        '@infrastructure': resolve('src/infrastructure'),
-        '@ui': resolve('src/ui'),
+        '@momentum': resolve('src/momentum'),
       },
     },
   }),
   manifest: {
-    name: 'WhatsApp CRM',
-    description: 'CRM extension for WhatsApp Web — leads, reminders, AI auto-reply',
-    permissions: ['storage', 'alarms', 'notifications', 'sidePanel', 'tabs'],
-    host_permissions: ['https://web.whatsapp.com/*', 'http://localhost:11434/*'],
+    name: 'Momentum X',
+    short_name: 'Momentum X',
+    description: 'The world\'s smartest productivity extension powered by AI. Reimagine your browser.',
+    version: '1.0.0',
+    permissions: [
+      'storage',
+      'alarms',
+      'notifications',
+      'sidePanel',
+      'tabs',
+      'contextMenus',
+      'activeTab',
+      'scripting',
+    ],
+    host_permissions: ['<all_urls>'],
     action: {
-      default_title: 'WhatsApp CRM',
-      default_icon: {
-        16: '/icon/16.png',
-        48: '/icon/48.png',
-        128: '/icon/128.png',
+      default_title: 'Momentum X',
+      default_popup: 'popup.html',
+    },
+    side_panel: {
+      default_path: 'sidepanel.html',
+    },
+    chrome_url_overrides: {
+      newtab: 'newtab.html',
+    },
+    options_ui: {
+      page: 'options.html',
+      open_in_tab: true,
+    },
+    commands: {
+      'open-sidebar': {
+        suggested_key: { default: 'Alt+Shift+M', mac: 'Alt+Shift+M' },
+        description: 'Open Momentum X AI sidebar',
+      },
+      'summarize-page': {
+        suggested_key: { default: 'Alt+Shift+S', mac: 'Alt+Shift+S' },
+        description: 'Summarize current page',
+      },
+      'quick-note': {
+        suggested_key: { default: 'Alt+Shift+N', mac: 'Alt+Shift+N' },
+        description: 'Create a quick note',
+      },
+      'toggle-timer': {
+        suggested_key: { default: 'Alt+Shift+T', mac: 'Alt+Shift+T' },
+        description: 'Toggle focus timer',
       },
     },
     icons: {
-      16: '/icon/16.png',
-      48: '/icon/48.png',
-      128: '/icon/128.png',
-    },
-    options_ui: {
-      page: 'privacy.html',
-      open_in_tab: true,
+      16: 'icon/16.png',
+      48: 'icon/48.png',
+      128: 'icon/128.png',
     },
   },
 });

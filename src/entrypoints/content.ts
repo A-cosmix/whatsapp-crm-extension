@@ -1,359 +1,171 @@
-import type { ConversationMessage, ContactInfo } from '@domain/services/interfaces';
-import type { WhatsAppActionRequest } from '@domain/messages';
-import { MessageTypes } from '@domain/messages';
+const TRACK_INTERVAL = 30;
+let trackTimer: ReturnType<typeof setInterval> | null = null;
+let pageStartTime = Date.now();
+let floatingRoot: HTMLDivElement | null = null;
 
-const DEBOUNCE_MS = 500;
-const seenMessageIds = new Set<string>();
-let lastChatId = '';
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function getPageContent(): { title: string; content: string } {
+  const title = document.title;
+  const article = document.querySelector('article')?.innerText;
+  const main = document.querySelector('main')?.innerText;
+  const body = document.body?.innerText ?? '';
+  const content = (article || main || body).slice(0, 12000);
+  return { title, content };
 }
 
-function waitFor(condition: () => boolean, timeoutMs: number, intervalMs = 200): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const start = Date.now();
-    const tick = () => {
-      if (condition()) {
-        resolve();
-        return;
-      }
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error('Timed out waiting for WhatsApp UI'));
-        return;
-      }
-      setTimeout(tick, intervalMs);
-    };
-    tick();
-  });
+function getYouTubeData(): { title: string; description: string } {
+  const title = document.querySelector('h1.ytd-video-primary-info-renderer, h1.title')?.textContent?.trim()
+    ?? document.title.replace(' - YouTube', '');
+  const description = document.querySelector('#description-inline-expander, #description')?.textContent?.trim() ?? '';
+  return { title, description };
 }
 
-function getMessageInput(): HTMLElement | null {
-  return (
-    document.querySelector('#main [contenteditable="true"][role="textbox"]') ??
-    document.querySelector('footer [contenteditable="true"]')
-  );
+function isYouTube(): boolean {
+  return location.hostname.includes('youtube.com') && location.pathname === '/watch';
 }
 
-function getActiveChatTitle(): string {
-  const header =
-    document.querySelector('#main header span[title]') ??
-    document.querySelector('#main header [data-testid="conversation-info-header"] span');
-  return header?.getAttribute('title') ?? header?.textContent?.trim() ?? 'Unknown';
-}
-
-function getHeaderSubtitle(): string {
-  const subtitle = document.querySelector(
-    '#main header span[data-testid="selectable-text"]',
-  );
-  return subtitle?.textContent?.trim() ?? '';
-}
-
-function extractPhoneFromText(text: string): string {
-  const match = text.match(/\+?[\d][\d\s\-()]{8,}[\d]/);
-  if (!match) return '';
-  const digits = match[0].replace(/[^\d+]/g, '');
-  if (digits.replace(/\D/g, '').length < 10) return '';
-  return digits.startsWith('+') ? digits : `+${digits}`;
-}
-
-function getActiveChatId(): string {
-  return getActiveChatTitle().replace(/\s+/g, '_').toLowerCase();
-}
-
-function isGroupChat(): boolean {
-  return (
-    document.querySelector('#main header [data-icon="default-group"]') !== null ||
-    document.querySelector('#main header [data-icon="group"]') !== null
-  );
-}
-
-function isWhatsAppReady(): boolean {
-  return document.querySelector('#pane-side') !== null;
-}
-
-async function searchAndOpenChat(query: string): Promise<void> {
-  const searchButton =
-    document.querySelector('[data-icon="search"]')?.closest('button') ??
-    document.querySelector('[title="Search or start new chat"]');
-
-  if (searchButton instanceof HTMLElement) {
-    searchButton.click();
-    await delay(400);
-  }
-
-  const searchInput =
-    document.querySelector('#side [contenteditable="true"]') ??
-    document.querySelector('[data-testid="chat-list-search"]');
-
-  if (!searchInput) throw new Error('Search box not found');
-
-  searchInput.textContent = query;
-  searchInput.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
-  await delay(900);
-
-  const chatItem =
-    document.querySelector('#pane-side [role="listitem"]') ??
-    document.querySelector('#pane-side [data-testid="cell-frame-container"]');
-
-  if (!(chatItem instanceof HTMLElement)) {
-    throw new Error(`Chat not found for: ${query}`);
-  }
-
-  chatItem.click();
-  await waitFor(() => getMessageInput() !== null, 12000);
-  await delay(600);
-}
-
-async function openChatByPhone(phone: string): Promise<void> {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length < 10) throw new Error('Invalid phone number');
-
-  const url = `https://web.whatsapp.com/send?phone=${digits}`;
-  if (!window.location.href.includes(`phone=${digits}`)) {
-    window.location.href = url;
-    await waitFor(() => getMessageInput() !== null, 20000);
-    await delay(1200);
-  }
-}
-
-async function ensureChatOpen(request: WhatsAppActionRequest): Promise<void> {
-  if (request.phone) {
-    await openChatByPhone(request.phone);
-    return;
-  }
-  if (request.name) {
-    await searchAndOpenChat(request.name);
-    return;
-  }
-  if (request.chatId && request.chatId !== getActiveChatId()) {
-    const titleGuess = request.chatId.replace(/_/g, ' ');
-    await searchAndOpenChat(titleGuess);
-  }
-}
-
-async function scrapePhoneFromContactInfo(): Promise<string> {
-  const headerBtn =
-    document.querySelector('#main header [data-testid="conversation-info-header"]') ??
-    document.querySelector('#main header img')?.closest('div');
-
-  if (headerBtn instanceof HTMLElement) {
-    headerBtn.click();
-    await delay(800);
-  }
-
-  const allText = Array.from(document.querySelectorAll('[data-testid="selectable-text"], span'))
-    .map((el) => el.textContent?.trim() ?? '')
-    .join(' ');
-
-  const phone = extractPhoneFromText(allText);
-  if (phone) return phone;
-
-  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-  return '';
-}
-
-function extractMessages(limit: number): ConversationMessage[] {
-  const containers = document.querySelectorAll(
-    '#main [data-testid="msg-container"], #main .message-in, #main .message-out',
-  );
-  const messages: ConversationMessage[] = [];
-  const chatId = getActiveChatId();
-
-  containers.forEach((container, index) => {
-    const textEl =
-      container.querySelector('[data-testid="msg-text"] span') ??
-      container.querySelector('.selectable-text span') ??
-      container.querySelector('.copyable-text span');
-    const text = textEl?.textContent?.trim();
-    if (!text) return;
-
-    const isOutgoing =
-      container.classList.contains('message-out') ||
-      container.closest('.message-out') !== null;
-
-    messages.push({
-      id: `${chatId}-${index}-${text.slice(0, 20)}`,
-      chatId,
-      role: isOutgoing ? 'user' : 'prospect',
-      text,
-      timestamp: Date.now(),
-    });
-  });
-
-  return messages.slice(-limit);
-}
-
-async function sendMessage(text: string): Promise<void> {
-  const input = getMessageInput();
-  if (!input) throw new Error('Message input not found');
-
-  input.focus();
-  await delay(100);
-
-  // Lexical / contenteditable compatible input
-  input.textContent = '';
-  input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'deleteContentBackward' }));
-
-  const dataTransfer = new DataTransfer();
-  dataTransfer.setData('text/plain', text);
-  input.dispatchEvent(
-    new ClipboardEvent('paste', { bubbles: true, clipboardData: dataTransfer }),
-  );
-
-  if (!input.textContent?.includes(text.slice(0, 10))) {
-    input.textContent = text;
-    input.dispatchEvent(
-      new InputEvent('input', { bubbles: true, inputType: 'insertText', data: text }),
-    );
-  }
-
-  await delay(400);
-
-  const sendButton =
-    document.querySelector('#main [data-testid="send"]') ??
-    document.querySelector('#main [data-icon="send"]')?.closest('button');
-
-  if (sendButton instanceof HTMLElement) {
-    sendButton.click();
-  } else {
-    input.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
-  }
-
-  await delay(300);
-}
-
-async function getContactInfo(): Promise<ContactInfo> {
-  let phone = extractPhoneFromText(getHeaderSubtitle()) || extractPhoneFromText(getActiveChatTitle());
-
-  if (!phone) {
-    phone = await scrapePhoneFromContactInfo();
-  }
-
-  return {
-    chatId: getActiveChatId(),
-    phone,
-    name: getActiveChatTitle(),
-    isGroup: isGroupChat(),
-  };
-}
-
-async function handleWhatsAppAction(request: WhatsAppActionRequest): Promise<unknown> {
-  switch (request.action) {
-    case 'isConnected':
-      return isWhatsAppReady();
-
-    case 'getActiveChat':
-      return isWhatsAppReady() ? getActiveChatId() : null;
-
-    case 'openChat':
-      await ensureChatOpen(request);
-      return { opened: true };
-
-    case 'getMessages':
-      await ensureChatOpen(request);
-      return extractMessages(request.limit ?? 20);
-
-    case 'getContact':
-      return getContactInfo();
-
-    case 'scrapePhone':
-      return scrapePhoneFromContactInfo();
-
-    case 'send':
-      await ensureChatOpen(request);
-      await sendMessage(request.text ?? '');
-      return { sent: true };
-
-    default:
-      throw new Error(`Unknown action: ${request.action}`);
-  }
-}
-
-function notifyIncomingMessage(text: string, messageId: string): void {
-  const chatId = getActiveChatId();
+function trackTime(): void {
+  const domain = location.hostname;
   chrome.runtime.sendMessage({
-    type: MessageTypes.MESSAGE_RECEIVED,
-    payload: {
-      chatId,
-      messageText: text,
-      messageId,
-      timestamp: Date.now(),
-      isGroup: isGroupChat(),
-    },
+    type: 'MX_TRACK_ANALYTICS',
+    payload: { domain, duration: TRACK_INTERVAL },
+  }).catch(() => {});
+}
+
+function createFloatingAssistant(): void {
+  if (floatingRoot) return;
+
+  floatingRoot = document.createElement('div');
+  floatingRoot.id = 'momentum-x-float';
+  floatingRoot.style.cssText = `
+    position: fixed; bottom: 24px; right: 24px; z-index: 2147483646;
+    font-family: Inter, system-ui, sans-serif;
+  `;
+
+  const btn = document.createElement('button');
+  btn.style.cssText = `
+    width: 52px; height: 52px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);
+    background: linear-gradient(135deg, #3b82f6, #7c3aed); color: white; cursor: pointer;
+    box-shadow: 0 0 30px rgba(59,130,246,0.4); display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s; backdrop-filter: blur(20px);
+  `;
+  btn.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>`;
+  btn.title = 'Momentum X AI';
+
+  btn.addEventListener('mouseenter', () => {
+    btn.style.transform = 'scale(1.08)';
+    btn.style.boxShadow = '0 0 50px rgba(59,130,246,0.6)';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.transform = 'scale(1)';
+    btn.style.boxShadow = '0 0 30px rgba(59,130,246,0.4)';
+  });
+
+  btn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'MX_OPEN_SIDEPANEL' });
+  });
+
+  floatingRoot.appendChild(btn);
+  document.body.appendChild(floatingRoot);
+}
+
+function showAIResult(title: string, content: string): void {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 2147483647; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;
+    font-family: Inter, system-ui, sans-serif; padding: 24px;
+  `;
+
+  const panel = document.createElement('div');
+  panel.style.cssText = `
+    max-width: 560px; width: 100%; max-height: 80vh; overflow-y: auto;
+    background: #0a0a0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+    padding: 24px; color: #f0f4ff; box-shadow: 0 0 60px rgba(59,130,246,0.2);
+  `;
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0;font-size:16px;text-transform:capitalize;color:#60a5fa">${title}</h3>
+      <button id="mx-close" style="background:none;border:none;color:#fff;opacity:0.5;cursor:pointer;font-size:20px">&times;</button>
+    </div>
+    <div style="font-size:14px;line-height:1.7;opacity:0.85;white-space:pre-wrap">${content}</div>
+    <button id="mx-copy" style="margin-top:16px;padding:10px 20px;border-radius:12px;border:none;
+      background:linear-gradient(135deg,#3b82f6,#7c3aed);color:#fff;cursor:pointer;font-size:13px;width:100%">
+      Copy to Clipboard
+    </button>
+  `;
+
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  panel.querySelector('#mx-close')?.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  panel.querySelector('#mx-copy')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(content);
   });
 }
 
-function observeMessages(): void {
-  const mainPanel = document.querySelector('#main');
-  if (!mainPanel) {
-    setTimeout(observeMessages, 2000);
-    return;
+function showQuickNote(): void {
+  const note = prompt('Quick Note — Momentum X:');
+  if (note?.trim()) {
+    chrome.runtime.sendMessage({
+      type: 'MX_ADD_NOTE',
+      payload: { title: 'Quick Note', content: note.trim() },
+    });
   }
-
-  const observer = new MutationObserver(() => {
-    const chatId = getActiveChatId();
-    if (chatId !== lastChatId && chatId !== 'unknown') {
-      lastChatId = chatId;
-    }
-
-    const containers = document.querySelectorAll(
-      '#main [data-testid="msg-container"], #main .message-in',
-    );
-    const last = containers[containers.length - 1];
-    if (!last) return;
-
-    const isOutgoing =
-      last.classList.contains('message-out') || last.closest('.message-out') !== null;
-    if (isOutgoing) return;
-
-    const textEl =
-      last.querySelector('[data-testid="msg-text"] span') ??
-      last.querySelector('.selectable-text span');
-    const text = textEl?.textContent?.trim();
-    if (!text) return;
-
-    const messageId = `msg-${chatId}-${text.slice(0, 30)}-${containers.length}`;
-    if (seenMessageIds.has(messageId)) return;
-
-    seenMessageIds.add(messageId);
-    if (seenMessageIds.size > 500) {
-      const first = seenMessageIds.values().next().value;
-      if (first) seenMessageIds.delete(first);
-    }
-
-    setTimeout(() => notifyIncomingMessage(text, messageId), DEBOUNCE_MS);
-  });
-
-  observer.observe(mainPanel, { childList: true, subtree: true });
 }
 
 export default defineContentScript({
-  matches: ['https://web.whatsapp.com/*'],
+  matches: ['<all_urls>'],
   runAt: 'document_idle',
+
   main() {
-    observeMessages();
+    pageStartTime = Date.now();
+    trackTimer = setInterval(trackTime, TRACK_INTERVAL * 1000);
+
+    chrome.storage.sync.get('mx_settings', (result) => {
+      const settings = result.mx_settings as { floatingAssistant?: boolean } | undefined;
+      if (settings?.floatingAssistant !== false) {
+        createFloatingAssistant();
+      }
+    });
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if (message?.type === 'WHATSAPP_ACTION') {
-        handleWhatsAppAction(message.payload as WhatsAppActionRequest)
-          .then((data) => sendResponse({ success: true, data }))
-          .catch((error) =>
-            sendResponse({
-              success: false,
-              error: error instanceof Error ? error.message : 'Action failed',
-            }),
-          );
-        return true;
+      switch (message.type) {
+        case 'MX_GET_PAGE_CONTENT':
+          sendResponse(getPageContent());
+          return true;
+
+        case 'MX_GET_YOUTUBE_DATA':
+          sendResponse(isYouTube() ? getYouTubeData() : { title: document.title, description: '' });
+          return true;
+
+        case 'MX_TRIGGER_PAGE_SUMMARY':
+          chrome.runtime.sendMessage({ type: 'MX_OPEN_SIDEPANEL' });
+          break;
+
+        case 'MX_SHOW_AI_RESULT': {
+          const { title, content } = message.payload as { title: string; content: string };
+          showAIResult(title, content);
+          break;
+        }
+
+        case 'MX_QUICK_NOTE':
+          showQuickNote();
+          break;
       }
       return false;
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (trackTimer) clearInterval(trackTimer);
+      const elapsed = Math.floor((Date.now() - pageStartTime) / 1000);
+      if (elapsed > 5) {
+        chrome.runtime.sendMessage({
+          type: 'MX_TRACK_ANALYTICS',
+          payload: { domain: location.hostname, duration: elapsed },
+        }).catch(() => {});
+      }
     });
   },
 });
