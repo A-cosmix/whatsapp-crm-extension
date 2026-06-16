@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DarkModeSwitch, DarkModeToggle } from '@/components/DarkModeToggle';
+import { ShortcutsSection } from '@/components/ShortcutRecorder';
 import { useTheme } from '@/hooks/use-theme';
-import type { ApiUsageStats, FeatureToggles, SummaryLength, UserPreferences } from '@/types';
+import type { ApiUsageStats, FeatureToggles, KeyboardShortcuts, SummaryLength, UserPreferences } from '@/types';
 import { DEFAULT_PREFERENCES } from '@/types';
+import { findShortcutConflicts } from '@/utils/shortcuts';
 
 async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -34,6 +36,7 @@ export function Options(): React.ReactElement {
   const [usage, setUsage] = useState<ApiUsageStats | null>(null);
   const [saved, setSaved] = useState(false);
   const [excludedInput, setExcludedInput] = useState('');
+  const [shortcutError, setShortcutError] = useState('');
 
   useEffect(() => {
     sendMessage<UserPreferences>('GET_PREFERENCES').then(setPrefs).catch(() => {});
@@ -89,6 +92,21 @@ export function Options(): React.ReactElement {
 
   const removeExcludedSender = (sender: string) => {
     save({ ...prefs, excludedSenders: prefs.excludedSenders.filter((s) => s !== sender) });
+  };
+
+  const handleShortcutsChange = (shortcuts: KeyboardShortcuts) => {
+    const conflicts = findShortcutConflicts(shortcuts);
+    if (conflicts.length > 0) {
+      setShortcutError(conflicts[0]);
+      return;
+    }
+    setShortcutError('');
+    save({ ...prefs, shortcuts });
+  };
+
+  const resetShortcuts = () => {
+    setShortcutError('');
+    save({ ...prefs, shortcuts: { ...DEFAULT_PREFERENCES.shortcuts } });
   };
 
   const exportDigestPdf = () => {
@@ -290,6 +308,19 @@ export function Options(): React.ReactElement {
         </div>
       </section>
 
+      {/* Keyboard shortcuts */}
+      <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+        <h2 className="text-lg font-semibold mb-3">Keyboard Shortcuts</h2>
+        <ShortcutsSection
+          shortcuts={prefs.shortcuts}
+          onChange={handleShortcutsChange}
+          onReset={resetShortcuts}
+        />
+        {shortcutError && (
+          <p className="mt-2 text-sm text-red-500">{shortcutError}</p>
+        )}
+      </section>
+
       {/* Appearance */}
       <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
         <h2 className="text-lg font-semibold mb-3">Appearance</h2>
@@ -328,7 +359,7 @@ export function Options(): React.ReactElement {
       </section>
 
       <footer className="text-center text-xs text-slate-400 pb-8">
-        AI Email Summarizer v1.0.0 · Keyboard shortcut: Alt+S to summarize
+        AI Email Summarizer v1.0.0 · Customize shortcuts in settings above
       </footer>
     </div>
   );

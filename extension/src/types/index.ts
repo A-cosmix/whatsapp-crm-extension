@@ -62,6 +62,16 @@ export interface UserPreferences {
   weeklyDigestMinute: number;
   excludedSenders: string[];
   darkMode: 'system' | 'light' | 'dark';
+  shortcuts: KeyboardShortcuts;
+}
+
+export type ShortcutAction = keyof KeyboardShortcuts;
+
+export interface KeyboardShortcuts {
+  summarize: string;
+  togglePanel: string;
+  smartReply: string;
+  quickSnooze: string;
 }
 
 export interface SnoozeReminder {
@@ -158,6 +168,12 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   weeklyDigestMinute: 0,
   excludedSenders: [],
   darkMode: 'system',
+  shortcuts: {
+    summarize: 'Alt+S',
+    togglePanel: 'Alt+P',
+    smartReply: 'Alt+R',
+    quickSnooze: 'Alt+Z',
+  },
 };
 
 export const PRIORITY_COLORS: Record<Priority, string> = {

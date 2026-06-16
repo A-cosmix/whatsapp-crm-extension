@@ -2,16 +2,24 @@
  * Shared content script logic for Gmail and Outlook.
  */
 
-import type { EmailAnalysis, EmailPlatform, ParsedEmail } from '@/types';
+import type { EmailAnalysis, EmailPlatform, KeyboardShortcuts, ParsedEmail, ShortcutAction } from '@/types';
+import { DEFAULT_PREFERENCES, SNOOZE_OPTIONS } from '@/types';
 import {
   addRowBadge,
   addSentimentIndicator,
+  collapsePanel,
   hidePanel,
   injectSidebar,
+  isPanelVisible,
+  openSmartRepliesOnPanel,
   sendMessage,
   showPanel,
   snoozeEmail,
 } from '@/shared/panel';
+import {
+  eventMatchesShortcut,
+  isEditableTarget,
+} from '@/utils/shortcuts';
 
 interface PlatformConfig {
   platform: EmailPlatform;
@@ -26,37 +34,119 @@ let currentAnalysis: EmailAnalysis | null = null;
 let activeFilter = 'All';
 let observer: MutationObserver | null = null;
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let shortcuts: KeyboardShortcuts = { ...DEFAULT_PREFERENCES.shortcuts };
 
 export function initContentScript(config: PlatformConfig): void {
   console.log(`[EmailSummarizer] ${config.platform} content script loaded`);
 
   injectSidebar(config.platform, handleFilter, handleSearch);
-  setupKeyboardShortcut(config);
+  loadShortcuts();
+  setupKeyboardShortcuts(config);
   setupMessageListener(config);
   observeEmailChanges(config);
 
-  // Initial analysis if email is already open
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'sync' && changes.preferences?.newValue?.shortcuts) {
+      shortcuts = {
+        ...DEFAULT_PREFERENCES.shortcuts,
+        ...changes.preferences.newValue.shortcuts,
+      };
+    }
+  });
+
   setTimeout(() => tryAnalyzeOpenEmail(config), 1500);
 }
 
-function setupKeyboardShortcut(config: PlatformConfig): void {
+async function loadShortcuts(): Promise<void> {
+  try {
+    const prefs = await sendMessage<{ shortcuts: KeyboardShortcuts }>('GET_PREFERENCES');
+    shortcuts = { ...DEFAULT_PREFERENCES.shortcuts, ...prefs.shortcuts };
+  } catch {
+    shortcuts = { ...DEFAULT_PREFERENCES.shortcuts };
+  }
+}
+
+function setupKeyboardShortcuts(config: PlatformConfig): void {
   document.addEventListener('keydown', (e) => {
-    if (e.altKey && e.key.toLowerCase() === 's') {
-      e.preventDefault();
-      tryAnalyzeOpenEmail(config, true);
+    if (isEditableTarget(e.target)) return;
+
+    const actions: Array<{ action: ShortcutAction; handler: () => void }> = [
+      { action: 'summarize', handler: () => tryAnalyzeOpenEmail(config, true) },
+      { action: 'togglePanel', handler: () => handleTogglePanel(config) },
+      { action: 'smartReply', handler: () => handleSmartReplyShortcut(config) },
+      { action: 'quickSnooze', handler: () => handleQuickSnooze(config) },
+    ];
+
+    for (const { action, handler } of actions) {
+      const combo = shortcuts[action];
+      if (combo && eventMatchesShortcut(e, combo)) {
+        e.preventDefault();
+        e.stopPropagation();
+        handler();
+        return;
+      }
     }
   });
 }
 
 function setupMessageListener(config: PlatformConfig): void {
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'SUMMARIZE_SHORTCUT') {
-      tryAnalyzeOpenEmail(config, true);
-    }
-    if (message.type === 'CONTEXT_SNOOZE' && currentEmail) {
-      handleSnooze(config, message.payload.durationMs);
+    switch (message.type) {
+      case 'SHORTCUT_SUMMARIZE':
+      case 'SUMMARIZE_SHORTCUT':
+        tryAnalyzeOpenEmail(config, true);
+        break;
+      case 'SHORTCUT_TOGGLE_PANEL':
+        handleTogglePanel(config);
+        break;
+      case 'SHORTCUT_SMART_REPLY':
+        handleSmartReplyShortcut(config);
+        break;
+      case 'SHORTCUT_QUICK_SNOOZE':
+        handleQuickSnooze(config);
+        break;
+      case 'CONTEXT_SNOOZE':
+        if (currentEmail) handleSnooze(config, message.payload.durationMs);
+        break;
     }
   });
+}
+
+function handleTogglePanel(config: PlatformConfig): void {
+  if (isPanelVisible()) {
+    collapsePanel();
+    return;
+  }
+
+  if (currentAnalysis && currentEmail) {
+    showPanel('success', currentAnalysis, undefined, buildCallbacks(config));
+    return;
+  }
+
+  tryAnalyzeOpenEmail(config, true);
+}
+
+async function handleSmartReplyShortcut(config: PlatformConfig): Promise<void> {
+  if (!currentAnalysis?.smartReplies) {
+    await tryAnalyzeOpenEmail(config, true);
+  }
+
+  if (currentAnalysis?.smartReplies) {
+    if (!isPanelVisible()) {
+      showPanel('success', currentAnalysis, undefined, buildCallbacks(config));
+    }
+    openSmartRepliesOnPanel();
+  }
+}
+
+function handleQuickSnooze(config: PlatformConfig): void {
+  if (!currentEmail) {
+    const email = config.parseOpen();
+    if (email) currentEmail = email;
+  }
+  if (currentEmail) {
+    handleSnooze(config, SNOOZE_OPTIONS[0].ms);
+  }
 }
 
 function observeEmailChanges(config: PlatformConfig): void {

@@ -98,8 +98,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 // ─── Keyboard shortcut ───────────────────────────────────────────────────────
 
 chrome.commands.onCommand.addListener((command, tab) => {
-  if (command === 'summarize-email' && tab?.id) {
-    chrome.tabs.sendMessage(tab.id, { type: 'SUMMARIZE_SHORTCUT' });
+  if (!tab?.id) return;
+
+  const messageMap: Record<string, string> = {
+    'summarize-email': 'SHORTCUT_SUMMARIZE',
+    'toggle-panel': 'SHORTCUT_TOGGLE_PANEL',
+    'smart-reply': 'SHORTCUT_SMART_REPLY',
+    'quick-snooze': 'SHORTCUT_QUICK_SNOOZE',
+  };
+
+  const type = messageMap[command];
+  if (type) {
+    chrome.tabs.sendMessage(tab.id, { type });
   }
 });
 

@@ -330,6 +330,7 @@ export async function getPreferences(): Promise<UserPreferences> {
     ...DEFAULT_PREFERENCES,
     ...stored,
     features: { ...DEFAULT_PREFERENCES.features, ...stored.features },
+    shortcuts: { ...DEFAULT_PREFERENCES.shortcuts, ...stored.shortcuts },
   };
 }
 

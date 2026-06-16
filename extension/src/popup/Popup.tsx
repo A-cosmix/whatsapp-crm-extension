@@ -194,7 +194,9 @@ export function Popup(): React.ReactElement {
         >
           {digestLoading ? 'Generating...' : '📊 Generate Weekly Digest'}
         </button>
-        <p className="text-center text-[10px] text-slate-400 mt-1">Alt+S to summarize · v1.0.0</p>
+        <p className="text-center text-[10px] text-slate-400 mt-1">
+          {prefs?.shortcuts?.summarize ?? 'Alt+S'} to summarize · v1.0.0
+        </p>
       </footer>
     </div>
   );

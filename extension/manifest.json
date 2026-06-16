@@ -56,10 +56,20 @@
   ],
   "commands": {
     "summarize-email": {
-      "suggested_key": {
-        "default": "Alt+S"
-      },
+      "suggested_key": { "default": "Alt+S" },
       "description": "Summarize the currently open email"
+    },
+    "toggle-panel": {
+      "suggested_key": { "default": "Alt+P" },
+      "description": "Toggle the AI analysis panel"
+    },
+    "smart-reply": {
+      "suggested_key": { "default": "Alt+R" },
+      "description": "Open smart reply suggestions"
+    },
+    "quick-snooze": {
+      "suggested_key": { "default": "Alt+Z" },
+      "description": "Quick snooze email for 1 hour"
     }
   },
   "web_accessible_resources": [

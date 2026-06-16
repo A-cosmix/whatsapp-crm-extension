@@ -483,6 +483,20 @@ export function addSentimentIndicator(row: Element, sentiment: string): void {
   row.querySelector('span.zF, span[email], [aria-label]')?.prepend(dot);
 }
 
+export function isPanelVisible(): boolean {
+  return !!shadowRoot?.querySelector('.aes-panel');
+}
+
+/** Hide only the analysis panel, keeping sidebar and host intact */
+export function collapsePanel(): void {
+  shadowRoot?.querySelector('.aes-panel')?.remove();
+}
+
+/** Expand the smart replies section on the open panel */
+export function openSmartRepliesOnPanel(): void {
+  shadowRoot?.querySelector('.aes-replies')?.classList.add('open');
+}
+
 export function hidePanel(): void {
   panelHost?.remove();
   panelHost = null;
