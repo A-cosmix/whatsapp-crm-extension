@@ -1,0 +1,81 @@
+{
+  "manifest_version": 3,
+  "name": "AI Email Summarizer & Priority Manager",
+  "version": "1.0.0",
+  "description": "Summarize emails, classify priority, extract meetings, and manage your inbox with Claude AI.",
+  "icons": {
+    "16": "public/icons/16.png",
+    "32": "public/icons/32.png",
+    "64": "public/icons/64.png",
+    "128": "public/icons/128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": {
+      "16": "public/icons/16.png",
+      "32": "public/icons/32.png",
+      "64": "public/icons/64.png",
+      "128": "public/icons/128.png"
+    },
+    "default_title": "AI Email Summarizer"
+  },
+  "options_ui": {
+    "page": "src/options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["src/content/gmail-content.ts"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://outlook.live.com/*"],
+      "js": ["src/content/outlook-content.ts"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "alarms",
+    "notifications",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://outlook.live.com/*",
+    "https://api.anthropic.com/*"
+  ],
+  "commands": {
+    "summarize-email": {
+      "suggested_key": { "default": "Alt+S" },
+      "description": "Summarize the currently open email"
+    },
+    "toggle-panel": {
+      "suggested_key": { "default": "Alt+P" },
+      "description": "Toggle the AI analysis panel"
+    },
+    "smart-reply": {
+      "suggested_key": { "default": "Alt+R" },
+      "description": "Open smart reply suggestions"
+    },
+    "quick-snooze": {
+      "suggested_key": { "default": "Alt+Z" },
+      "description": "Quick snooze email for 1 hour"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["public/icons/*"],
+      "matches": ["https://mail.google.com/*", "https://outlook.live.com/*"]
+    }
+  ]
+}
