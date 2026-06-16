@@ -24,6 +24,11 @@ import {
   saveSnooze,
   searchAnalyses,
 } from '@/utils/storage';
+import {
+  getOnboardingState,
+  resetOnboarding,
+  saveOnboardingState,
+} from '@/utils/onboarding';
 import type {
   AnalyzeEmailPayload,
   EmailAnalysis,
@@ -44,6 +49,11 @@ function log(...args: unknown[]): void {
 
 chrome.runtime.onInstalled.addListener(() => {
   log('Extension installed — setting up context menus and alarms');
+
+  // Show onboarding on first install (state defaults to popupCompleted: false)
+  getOnboardingState().then((state) => {
+    if (!state.popupCompleted) log('First install — onboarding will show on popup open');
+  });
 
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
@@ -300,6 +310,18 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
     case 'GET_ALL_ANALYSES':
       return getAllAnalyses();
+
+    case 'GET_ONBOARDING':
+      return getOnboardingState();
+
+    case 'SAVE_ONBOARDING': {
+      const state = message.payload as import('@/types').OnboardingState;
+      await saveOnboardingState(state);
+      return state;
+    }
+
+    case 'RESET_ONBOARDING':
+      return resetOnboarding();
 
     default:
       throw new Error(`Unknown message type: ${message.type}`);

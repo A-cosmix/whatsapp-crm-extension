@@ -16,6 +16,7 @@ import {
   showPanel,
   snoozeEmail,
 } from '@/shared/panel';
+import { maybeStartEmailTour, restartEmailTour } from '@/shared/email-tour';
 import {
   eventMatchesShortcut,
   isEditableTarget,
@@ -55,6 +56,10 @@ export function initContentScript(config: PlatformConfig): void {
   });
 
   setTimeout(() => tryAnalyzeOpenEmail(config), 1500);
+
+  loadShortcuts().then(() => {
+    maybeStartEmailTour(shortcuts.summarize);
+  });
 }
 
 async function loadShortcuts(): Promise<void> {
@@ -107,6 +112,9 @@ function setupMessageListener(config: PlatformConfig): void {
         break;
       case 'CONTEXT_SNOOZE':
         if (currentEmail) handleSnooze(config, message.payload.durationMs);
+        break;
+      case 'START_EMAIL_TOUR':
+        restartEmailTour(shortcuts.summarize);
         break;
     }
   });

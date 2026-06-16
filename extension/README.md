@@ -14,7 +14,8 @@ A production-ready Chrome extension (Manifest V3) that uses Claude AI to summari
 - **Weekly Digest** — Configurable Sunday report with action items
 - **Sidebar Filters** — Filter by priority, search summarized content
 - **Offline Cache** — IndexedDB cache with 30-day auto-expiry
-- **Keyboard Shortcuts** — Customizable shortcuts for summarize, toggle panel, smart reply, and quick snooze (default: Alt+S, Alt+P, Alt+R, Alt+Z)
+- **Onboarding Tutorial** — 6-step setup wizard plus in-page Gmail/Outlook tour on first visit
+- **Keyboard Shortcuts** — Customizable shortcuts for summarize, toggle panel, smart reply, and quick snooze
 
 ## Tech Stack
 

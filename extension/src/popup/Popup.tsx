@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
+import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useTheme } from '@/hooks/use-theme';
-import type { ApiUsageStats, EmailAnalysis, UserPreferences } from '@/types';
-import { PRIORITY_COLORS, SENTIMENT_EMOJI } from '@/types';
+import type { ApiUsageStats, EmailAnalysis, OnboardingState, UserPreferences } from '@/types';
+import { DEFAULT_PREFERENCES, PRIORITY_COLORS, SENTIMENT_EMOJI } from '@/types';
+import { shouldShowPopupOnboarding } from '@/utils/onboarding';
 
 async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -23,17 +25,20 @@ export function Popup(): React.ReactElement {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [digestLoading, setDigestLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [p, a, u] = await Promise.all([
+      const [p, a, u, onboarding] = await Promise.all([
         sendMessage<UserPreferences>('GET_PREFERENCES'),
         sendMessage<EmailAnalysis[]>('GET_ALL_ANALYSES'),
         sendMessage<ApiUsageStats>('GET_API_USAGE'),
+        sendMessage<OnboardingState>('GET_ONBOARDING'),
       ]);
       setPrefs(p);
       setAnalyses(a);
       setUsage(u);
+      setShowOnboarding(shouldShowPopupOnboarding(onboarding));
     } catch {
       // handled by empty state
     } finally {
@@ -44,6 +49,11 @@ export function Popup(): React.ReactElement {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    loadData();
+  };
 
   const filtered = analyses
     .filter((a) => filter === 'All' || a.priority === filter)
@@ -76,6 +86,15 @@ export function Popup(): React.ReactElement {
     );
   }
 
+  if (showOnboarding) {
+    return (
+      <OnboardingTutorial
+        shortcuts={prefs?.shortcuts ?? DEFAULT_PREFERENCES.shortcuts}
+        onComplete={handleOnboardingComplete}
+      />
+    );
+  }
+
   if (!prefs?.apiKey) {
     return (
       <div className="p-6 text-center relative">
@@ -89,9 +108,15 @@ export function Popup(): React.ReactElement {
         </p>
         <button
           onClick={openOptions}
-          className="w-full py-2 px-4 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition"
+          className="w-full py-2 px-4 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition mb-2"
         >
           Open Settings
+        </button>
+        <button
+          onClick={() => setShowOnboarding(true)}
+          className="w-full py-2 px-4 text-sm text-brand-600 hover:underline"
+        >
+          View setup tutorial
         </button>
       </div>
     );

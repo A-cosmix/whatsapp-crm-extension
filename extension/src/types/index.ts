@@ -125,7 +125,11 @@ export type MessageType =
   | 'GENERATE_WEEKLY_DIGEST'
   | 'GET_API_USAGE'
   | 'SEARCH_SUMMARIES'
-  | 'GET_ALL_ANALYSES';
+  | 'GET_ALL_ANALYSES'
+  | 'GET_ONBOARDING'
+  | 'SAVE_ONBOARDING'
+  | 'RESET_ONBOARDING'
+  | 'START_EMAIL_TOUR';
 
 export interface ExtensionMessage<T = unknown> {
   type: MessageType;
@@ -148,6 +152,26 @@ export interface SnoozePayload {
 export interface ApiError {
   code: 'INVALID_KEY' | 'RATE_LIMIT' | 'NETWORK' | 'TIMEOUT' | 'PARSE_ERROR' | 'UNKNOWN';
   message: string;
+}
+
+export interface OnboardingState {
+  popupCompleted: boolean;
+  emailTourCompleted: boolean;
+  completedAt?: number;
+  skipped: boolean;
+}
+
+export const DEFAULT_ONBOARDING: OnboardingState = {
+  popupCompleted: false,
+  emailTourCompleted: false,
+  skipped: false,
+};
+
+export interface OnboardingStep {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {

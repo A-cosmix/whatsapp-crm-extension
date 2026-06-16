@@ -109,6 +109,25 @@ export function Options(): React.ReactElement {
     save({ ...prefs, shortcuts: { ...DEFAULT_PREFERENCES.shortcuts } });
   };
 
+  const replayPopupTutorial = async () => {
+    await sendMessage('RESET_ONBOARDING');
+    try {
+      await chrome.action.openPopup();
+    } catch {
+      alert('Click the extension icon in your toolbar to start the setup tutorial.');
+    }
+  };
+
+  const replayEmailTour = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab?.url ?? '';
+    if (tab?.id && (url.includes('mail.google.com') || url.includes('outlook.live.com'))) {
+      chrome.tabs.sendMessage(tab.id, { type: 'START_EMAIL_TOUR' });
+    } else {
+      alert('Open Gmail or Outlook in a tab, then click Replay email tour again.');
+    }
+  };
+
   const exportDigestPdf = () => {
     window.print();
   };
@@ -305,6 +324,30 @@ export function Options(): React.ReactElement {
               </button>
             </span>
           ))}
+        </div>
+      </section>
+
+      {/* Onboarding */}
+      <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+        <h2 className="text-lg font-semibold mb-3">Onboarding Tutorial</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">
+          Replay the setup walkthrough or the in-page Gmail/Outlook tour.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={replayPopupTutorial}
+            className="text-sm px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700"
+          >
+            Replay setup tutorial
+          </button>
+          <button
+            type="button"
+            onClick={replayEmailTour}
+            className="text-sm px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700"
+          >
+            Replay email tour
+          </button>
         </div>
       </section>
 
