@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DarkModeSwitch, DarkModeToggle } from '@/components/DarkModeToggle';
+import { AnalyticsDashboard } from '@/components/AnalyticsDashboard';
 import { ShortcutsSection } from '@/components/ShortcutRecorder';
 import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, FeatureToggles, KeyboardShortcuts, SummaryLength, UserPreferences } from '@/types';
@@ -327,6 +328,15 @@ export function Options(): React.ReactElement {
         </div>
       </section>
 
+      {/* Usage analytics */}
+      <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
+        <h2 className="text-lg font-semibold mb-3">Usage Analytics</h2>
+        <AnalyticsDashboard
+          enabled={prefs.analyticsEnabled}
+          onToggle={(enabled) => save({ ...prefs, analyticsEnabled: enabled })}
+        />
+      </section>
+
       {/* Onboarding */}
       <section className="mb-8 p-5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50">
         <h2 className="text-lg font-semibold mb-3">Onboarding Tutorial</h2>
@@ -398,6 +408,7 @@ export function Options(): React.ReactElement {
           <li>Summaries are cached locally in IndexedDB for 30 days.</li>
           <li>No data is sent to third-party servers besides Anthropic.</li>
           <li>Your API key is stored in Chrome encrypted sync storage.</li>
+          <li>Usage analytics is stored locally in IndexedDB and never sent to third parties.</li>
         </ul>
       </section>
 

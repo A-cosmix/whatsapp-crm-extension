@@ -64,6 +64,7 @@ export async function saveDarkModeSetting(setting: DarkModeSetting): Promise<voi
       smartReply: 'Alt+R',
       quickSnooze: 'Alt+Z',
     },
+    analyticsEnabled: true,
   };
   await chrome.storage.sync.set({ preferences: { ...prefs, darkMode: setting } });
 }

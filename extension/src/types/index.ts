@@ -63,6 +63,7 @@ export interface UserPreferences {
   excludedSenders: string[];
   darkMode: 'system' | 'light' | 'dark';
   shortcuts: KeyboardShortcuts;
+  analyticsEnabled: boolean;
 }
 
 export type ShortcutAction = keyof KeyboardShortcuts;
@@ -129,7 +130,10 @@ export type MessageType =
   | 'GET_ONBOARDING'
   | 'SAVE_ONBOARDING'
   | 'RESET_ONBOARDING'
-  | 'START_EMAIL_TOUR';
+  | 'START_EMAIL_TOUR'
+  | 'TRACK_EVENT'
+  | 'GET_ANALYTICS'
+  | 'CLEAR_ANALYTICS';
 
 export interface ExtensionMessage<T = unknown> {
   type: MessageType;
@@ -174,6 +178,60 @@ export interface OnboardingStep {
   icon: string;
 }
 
+export type AnalyticsFeature =
+  | 'email_summarized'
+  | 'cache_hit'
+  | 'smart_reply_used'
+  | 'snooze'
+  | 'panel_toggled'
+  | 'weekly_digest'
+  | 'meeting_detected'
+  | 'filter_applied'
+  | 'search_performed'
+  | 'keyboard_shortcut'
+  | 'calendar_add'
+  | 'onboarding_completed'
+  | 'api_error';
+
+export interface AnalyticsEvent {
+  id?: number;
+  feature: AnalyticsFeature;
+  timestamp: number;
+  platform?: EmailPlatform;
+  metadata?: Record<string, string | number | boolean>;
+}
+
+export interface AnalyticsSummary {
+  totalEvents: number;
+  periodDays: number;
+  byFeature: Partial<Record<AnalyticsFeature, number>>;
+  byPlatform: Partial<Record<EmailPlatform, number>>;
+  byDay: { date: string; count: number }[];
+  topFeatures: { feature: AnalyticsFeature; label: string; count: number }[];
+}
+
+export const ANALYTICS_FEATURE_LABELS: Record<AnalyticsFeature, string> = {
+  email_summarized: 'Emails Summarized',
+  cache_hit: 'Cache Hits',
+  smart_reply_used: 'Smart Replies',
+  snooze: 'Snoozes',
+  panel_toggled: 'Panel Toggles',
+  weekly_digest: 'Weekly Digests',
+  meeting_detected: 'Meetings Detected',
+  filter_applied: 'Filter Uses',
+  search_performed: 'Searches',
+  keyboard_shortcut: 'Keyboard Shortcuts',
+  calendar_add: 'Calendar Adds',
+  onboarding_completed: 'Onboarding Completed',
+  api_error: 'API Errors',
+};
+
+export interface TrackEventPayload {
+  feature: AnalyticsFeature;
+  platform?: EmailPlatform;
+  metadata?: Record<string, string | number | boolean>;
+}
+
 export const DEFAULT_PREFERENCES: UserPreferences = {
   apiKey: '',
   features: {
@@ -198,6 +256,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
     smartReply: 'Alt+R',
     quickSnooze: 'Alt+Z',
   },
+  analyticsEnabled: true,
 };
 
 export const PRIORITY_COLORS: Record<Priority, string> = {

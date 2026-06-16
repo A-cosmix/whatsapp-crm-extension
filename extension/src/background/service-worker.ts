@@ -29,6 +29,12 @@ import {
   resetOnboarding,
   saveOnboardingState,
 } from '@/utils/onboarding';
+import {
+  clearAnalytics,
+  getAnalyticsSummary,
+  trackEventPayload,
+  trackFeatureUsage,
+} from '@/utils/analytics';
 import type {
   AnalyzeEmailPayload,
   EmailAnalysis,
@@ -215,6 +221,7 @@ async function handleWeeklyDigest(): Promise<void> {
     });
 
     await chrome.storage.local.set({ pendingDigest: digest });
+    await trackFeatureUsage('weekly_digest', { metadata: { totalEmails: emails.length } });
     log('Weekly digest generated');
   } catch (err) {
     log('Weekly digest failed:', err);
@@ -317,11 +324,29 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case 'SAVE_ONBOARDING': {
       const state = message.payload as import('@/types').OnboardingState;
       await saveOnboardingState(state);
+      if (state.popupCompleted) {
+        await trackFeatureUsage('onboarding_completed', {
+          metadata: { skipped: state.skipped },
+        });
+      }
       return state;
     }
 
     case 'RESET_ONBOARDING':
       return resetOnboarding();
+
+    case 'TRACK_EVENT':
+      await trackEventPayload(message.payload as import('@/types').TrackEventPayload);
+      return true;
+
+    case 'GET_ANALYTICS': {
+      const { periodDays } = (message.payload as { periodDays?: number }) ?? {};
+      return getAnalyticsSummary(periodDays ?? 30);
+    }
+
+    case 'CLEAR_ANALYTICS':
+      await clearAnalytics();
+      return true;
 
     default:
       throw new Error(`Unknown message type: ${message.type}`);
@@ -360,14 +385,29 @@ async function handleAnalyzeEmail(payload: AnalyzeEmailPayload): Promise<EmailAn
     const cached = await getCachedAnalysis(email.id);
     if (cached) {
       log('Returning cached analysis for', email.id);
+      await trackFeatureUsage('cache_hit', { platform: email.platform });
       return cached;
     }
   }
 
-  const analysis = await analyzeEmail(email, prefs);
-  await cacheAnalysis(analysis);
-  log('Analyzed email:', email.subject);
-  return analysis;
+  try {
+    const analysis = await analyzeEmail(email, prefs);
+    await cacheAnalysis(analysis);
+    log('Analyzed email:', email.subject);
+
+    await trackFeatureUsage('email_summarized', { platform: email.platform });
+    if (analysis.meeting?.date || analysis.meeting?.meetingLink) {
+      await trackFeatureUsage('meeting_detected', { platform: email.platform });
+    }
+
+    return analysis;
+  } catch (err) {
+    await trackFeatureUsage('api_error', {
+      platform: email.platform,
+      metadata: { code: (err as { code?: string })?.code ?? 'unknown' },
+    });
+    throw err;
+  }
 }
 
 async function handleSnooze(payload: SnoozePayload): Promise<SnoozeReminder> {
@@ -384,6 +424,11 @@ async function handleSnooze(payload: SnoozePayload): Promise<SnoozeReminder> {
   await saveSnooze(reminder);
   chrome.alarms.create(`snooze_${reminder.id}`, {
     when: reminder.resurfaceAt,
+  });
+
+  await trackFeatureUsage('snooze', {
+    platform: payload.platform,
+    metadata: { durationMs: payload.durationMs },
   });
 
   log('Snoozed email until', new Date(reminder.resurfaceAt).toISOString());

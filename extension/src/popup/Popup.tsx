@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
+import { AnalyticsMini } from '@/components/AnalyticsDashboard';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
 import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, EmailAnalysis, OnboardingState, UserPreferences } from '@/types';
@@ -147,6 +148,8 @@ export function Popup(): React.ReactElement {
           </p>
         )}
       </header>
+
+      {prefs.analyticsEnabled && <AnalyticsMini />}
 
       <div className="px-3 py-2 flex gap-1 flex-wrap">
         {['All', 'Important', 'Routine', 'Low Priority'].map((f) => (

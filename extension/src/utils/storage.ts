@@ -4,7 +4,7 @@
  */
 
 import Dexie, { type Table } from 'dexie';
-import type { EmailAnalysis, SnoozeReminder, WeeklyDigest } from '@/types';
+import type { AnalyticsEvent, EmailAnalysis, SnoozeReminder, WeeklyDigest } from '@/types';
 
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -12,6 +12,7 @@ class EmailSummarizerDB extends Dexie {
   analyses!: Table<EmailAnalysis, string>;
   snoozes!: Table<SnoozeReminder, string>;
   digests!: Table<WeeklyDigest, number>;
+  analytics!: Table<AnalyticsEvent, number>;
 
   constructor() {
     super('EmailSummarizerDB');
@@ -19,6 +20,12 @@ class EmailSummarizerDB extends Dexie {
       analyses: 'id, sender, priority, analyzedAt, platform',
       snoozes: 'id, emailId, resurfaceAt, platform',
       digests: '++generatedAt',
+    });
+    this.version(2).stores({
+      analyses: 'id, sender, priority, analyzedAt, platform',
+      snoozes: 'id, emailId, resurfaceAt, platform',
+      digests: '++generatedAt',
+      analytics: '++id, feature, timestamp, platform',
     });
   }
 }

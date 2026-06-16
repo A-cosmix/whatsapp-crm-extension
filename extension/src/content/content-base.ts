@@ -21,6 +21,7 @@ import {
   eventMatchesShortcut,
   isEditableTarget,
 } from '@/utils/shortcuts';
+import { trackEvent } from '@/utils/analytics';
 
 interface PlatformConfig {
   platform: EmailPlatform;
@@ -87,6 +88,10 @@ function setupKeyboardShortcuts(config: PlatformConfig): void {
       if (combo && eventMatchesShortcut(e, combo)) {
         e.preventDefault();
         e.stopPropagation();
+        trackEvent('keyboard_shortcut', {
+          platform: config.platform,
+          metadata: { action },
+        });
         handler();
         return;
       }
@@ -121,6 +126,7 @@ function setupMessageListener(config: PlatformConfig): void {
 }
 
 function handleTogglePanel(config: PlatformConfig): void {
+  trackEvent('panel_toggled', { platform: config.platform });
   if (isPanelVisible()) {
     collapsePanel();
     return;
@@ -287,6 +293,9 @@ async function processVisibleRows(config: PlatformConfig): Promise<void> {
 
 function handleFilter(priority: string): void {
   activeFilter = priority;
+  if (priority !== 'All') {
+    trackEvent('filter_applied', { metadata: { priority } });
+  }
   document.querySelectorAll('[class*="aes-highlight"]').forEach((row) => {
     const badge = row.querySelector('.aes-row-badge');
     const rowPriority = badge?.getAttribute('title')?.split('|')[0]?.trim() ?? 'All';
@@ -311,6 +320,7 @@ async function handleSearch(query: string): Promise<void> {
   }
 
   try {
+    trackEvent('search_performed');
     const results = await sendMessage<EmailAnalysis[]>('SEARCH_SUMMARIES', { query });
     const matchIds = new Set(results.map((r) => r.id));
 

@@ -331,6 +331,7 @@ export async function getPreferences(): Promise<UserPreferences> {
     ...stored,
     features: { ...DEFAULT_PREFERENCES.features, ...stored.features },
     shortcuts: { ...DEFAULT_PREFERENCES.shortcuts, ...stored.shortcuts },
+    analyticsEnabled: stored.analyticsEnabled ?? DEFAULT_PREFERENCES.analyticsEnabled,
   };
 }
 

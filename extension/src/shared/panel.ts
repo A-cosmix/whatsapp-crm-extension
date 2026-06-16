@@ -11,6 +11,7 @@ import {
   SNOOZE_OPTIONS,
 } from '@/types';
 import { buildGoogleCalendarUrl } from '@/utils/parser';
+import { trackEvent } from '@/utils/analytics';
 import {
   isDarkModeActive,
   loadDarkModeSetting,
@@ -330,6 +331,7 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
     calBtn.textContent = 'Add to Calendar';
     calBtn.style.marginTop = '8px';
     calBtn.addEventListener('click', () => {
+      trackEvent('calendar_add', { platform: analysis.platform });
       window.open(buildGoogleCalendarUrl(analysis.meeting!), '_blank');
     });
     meeting.appendChild(calBtn);
@@ -353,7 +355,13 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
       const btn = document.createElement('button');
       btn.className = 'aes-reply-btn';
       btn.innerHTML = `<span class="aes-reply-label">${style}</span><br>${text}`;
-      btn.addEventListener('click', () => callbacks?.onSmartReply(text));
+      btn.addEventListener('click', () => {
+        trackEvent('smart_reply_used', {
+          platform: analysis.platform,
+          metadata: { style },
+        });
+        callbacks?.onSmartReply(text);
+      });
       replies.appendChild(btn);
     }
   }
