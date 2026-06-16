@@ -11,7 +11,8 @@ import {
   SNOOZE_OPTIONS,
 } from '@/types';
 import { buildGoogleCalendarUrl } from '@/utils/parser';
-import { trackEvent } from '@/utils/analytics';
+import { escapeHtml } from '@/utils/escape-html';
+import { trackEvent } from '@/utils/track-event';
 import {
   isDarkModeActive,
   loadDarkModeSetting,
@@ -263,7 +264,8 @@ export function showPanel(
     body.innerHTML = `<div class="aes-spinner" role="status"><span style="display:none">Processing...</span></div>
       <p style="text-align:center;color:#64748b">Analyzing email...</p>`;
   } else if (state === 'error') {
-    body.innerHTML = `<div class="aes-error">${errorMessage ?? 'Failed to analyze email.'}</div>
+    const safeMsg = escapeHtml(errorMessage ?? 'Failed to analyze email.');
+    body.innerHTML = `<div class="aes-error">${safeMsg}</div>
       <div class="aes-actions"><button class="aes-btn aes-btn-secondary" data-action="retry">Retry</button></div>`;
   } else if (analysis) {
     body.appendChild(buildAnalysisContent(analysis, callbacks));
@@ -294,8 +296,8 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
   const meta = document.createElement('div');
   meta.className = 'aes-meta';
   meta.innerHTML = `
-    <span class="aes-badge" style="background:${PRIORITY_COLORS[analysis.priority]}">${analysis.priority}</span>
-    <span class="aes-sentiment" title="${analysis.sentiment}" style="color:${SENTIMENT_COLORS[analysis.sentiment]}">${SENTIMENT_EMOJI[analysis.sentiment]}</span>
+    <span class="aes-badge" style="background:${PRIORITY_COLORS[analysis.priority]}">${escapeHtml(analysis.priority)}</span>
+    <span class="aes-sentiment" title="${escapeHtml(analysis.sentiment)}" style="color:${SENTIMENT_COLORS[analysis.sentiment]}">${SENTIMENT_EMOJI[analysis.sentiment]}</span>
   `;
   container.appendChild(meta);
 
@@ -318,13 +320,15 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
   if (analysis.meeting && (analysis.meeting.date || analysis.meeting.meetingLink)) {
     const meeting = document.createElement('div');
     meeting.className = 'aes-meeting';
+    const m = analysis.meeting;
+    const link = m.meetingLink && /^https?:\/\//i.test(m.meetingLink) ? m.meetingLink : '';
     meeting.innerHTML = `
       <h4>📅 Meeting Detected</h4>
-      ${analysis.meeting.date ? `<p><strong>Date:</strong> ${analysis.meeting.date}</p>` : ''}
-      ${analysis.meeting.time ? `<p><strong>Time:</strong> ${analysis.meeting.time}</p>` : ''}
-      ${analysis.meeting.attendees.length ? `<p><strong>Attendees:</strong> ${analysis.meeting.attendees.join(', ')}</p>` : ''}
-      ${analysis.meeting.agenda ? `<p><strong>Agenda:</strong> ${analysis.meeting.agenda}</p>` : ''}
-      ${analysis.meeting.meetingLink ? `<p><strong>Link:</strong> <a href="${analysis.meeting.meetingLink}" target="_blank" rel="noopener">${analysis.meeting.meetingLink}</a></p>` : ''}
+      ${m.date ? `<p><strong>Date:</strong> ${escapeHtml(m.date)}</p>` : ''}
+      ${m.time ? `<p><strong>Time:</strong> ${escapeHtml(m.time)}</p>` : ''}
+      ${m.attendees.length ? `<p><strong>Attendees:</strong> ${escapeHtml(m.attendees.join(', '))}</p>` : ''}
+      ${m.agenda ? `<p><strong>Agenda:</strong> ${escapeHtml(m.agenda)}</p>` : ''}
+      ${link ? `<p><strong>Link:</strong> <a href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link)}</a></p>` : ''}
     `;
     const calBtn = document.createElement('button');
     calBtn.className = 'aes-btn aes-btn-primary';
@@ -341,10 +345,10 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
   const expanded = document.createElement('div');
   expanded.className = 'aes-expanded';
   expanded.innerHTML = `
-    <p><strong>Subject:</strong> ${analysis.subject}</p>
-    <p><strong>From:</strong> ${analysis.sender}</p>
-    <p><strong>Sentiment:</strong> ${analysis.sentiment}</p>
-    <p><strong>Analyzed:</strong> ${new Date(analysis.analyzedAt).toLocaleString()}</p>
+    <p><strong>Subject:</strong> ${escapeHtml(analysis.subject)}</p>
+    <p><strong>From:</strong> ${escapeHtml(analysis.sender)}</p>
+    <p><strong>Sentiment:</strong> ${escapeHtml(analysis.sentiment)}</p>
+    <p><strong>Analyzed:</strong> ${escapeHtml(new Date(analysis.analyzedAt).toLocaleString())}</p>
   `;
   container.appendChild(expanded);
 
@@ -354,7 +358,7 @@ function buildAnalysisContent(analysis: EmailAnalysis, callbacks?: PanelCallback
     for (const [style, text] of Object.entries(analysis.smartReplies)) {
       const btn = document.createElement('button');
       btn.className = 'aes-reply-btn';
-      btn.innerHTML = `<span class="aes-reply-label">${style}</span><br>${text}`;
+      btn.innerHTML = `<span class="aes-reply-label">${escapeHtml(style)}</span><br>${escapeHtml(text)}`;
       btn.addEventListener('click', () => {
         trackEvent('smart_reply_used', {
           platform: analysis.platform,

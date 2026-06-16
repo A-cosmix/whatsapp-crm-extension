@@ -104,15 +104,5 @@ export async function getAnalyticsSummary(periodDays = 30): Promise<AnalyticsSum
   };
 }
 
-/** Fire-and-forget track from content scripts / panel */
-export function trackEvent(
-  feature: AnalyticsFeature,
-  options?: {
-    platform?: EmailPlatform;
-    metadata?: Record<string, string | number | boolean>;
-  },
-): void {
-  chrome.runtime
-    .sendMessage({ type: 'TRACK_EVENT', payload: { feature, ...options } })
-    .catch(() => {});
-}
+/** Fire-and-forget track from content scripts / panel — see track-event.ts */
+export { trackEvent } from '@/utils/track-event';

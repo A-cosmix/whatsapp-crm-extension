@@ -6,7 +6,9 @@ import { ShortcutsSection } from '@/components/ShortcutRecorder';
 import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, FeatureToggles, KeyboardShortcuts, SummaryLength, UserPreferences } from '@/types';
 import { DEFAULT_PREFERENCES } from '@/types';
+import { isEmailHostUrl } from '@/utils/email-hosts';
 import { findShortcutConflicts } from '@/utils/shortcuts';
+import { Toast, type ToastVariant } from '@/components/Toast';
 
 async function sendMessage<T>(type: string, payload?: unknown): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -42,6 +44,7 @@ export function Options(): React.ReactElement {
   const [saved, setSaved] = useState(false);
   const [excludedInput, setExcludedInput] = useState('');
   const [shortcutError, setShortcutError] = useState('');
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
 
   useEffect(() => {
     sendMessage<UserPreferences>('GET_PREFERENCES').then(setPrefs).catch(() => {});
@@ -123,17 +126,24 @@ export function Options(): React.ReactElement {
     try {
       await chrome.action.openPopup();
     } catch {
-      alert('Click the extension icon in your toolbar to start the setup tutorial.');
+      setToast({
+        message: 'Click the extension icon in your toolbar to start the setup tutorial.',
+        variant: 'info',
+      });
     }
   };
 
   const replayEmailTour = async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const url = tab?.url ?? '';
-    if (tab?.id && (url.includes('mail.google.com') || url.includes('outlook.live.com'))) {
+    if (tab?.id && isEmailHostUrl(url)) {
       chrome.tabs.sendMessage(tab.id, { type: 'START_EMAIL_TOUR' });
+      setToast({ message: 'Email tour started in the active tab.', variant: 'success' });
     } else {
-      alert('Open Gmail or Outlook in a tab, then click Replay email tour again.');
+      setToast({
+        message: 'Open Gmail or Outlook in a tab, then click Replay email tour again.',
+        variant: 'info',
+      });
     }
   };
 
@@ -146,7 +156,7 @@ export function Options(): React.ReactElement {
       <header className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">✨ AI Email Summarizer</h1>
-          <p className="text-sm text-slate-500 mt-1">Settings &amp; Configuration · v1.0.0</p>
+          <p className="text-sm text-slate-500 mt-1">Settings &amp; Configuration · v1.0.1</p>
         </div>
         <DarkModeToggle isDark={isDark} onToggle={toggleTheme} />
       </header>
@@ -452,9 +462,17 @@ export function Options(): React.ReactElement {
       </section>
 
       <footer className="text-center text-xs text-slate-400 pb-8">
-        AI Email Summarizer v1.0.0 · Customize shortcuts in settings above
+        AI Email Summarizer v1.0.1 · Customize shortcuts in settings above
       </footer>
       </>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={() => setToast(null)}
+        />
       )}
     </div>
   );

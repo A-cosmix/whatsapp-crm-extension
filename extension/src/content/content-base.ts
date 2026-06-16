@@ -21,7 +21,7 @@ import {
   eventMatchesShortcut,
   isEditableTarget,
 } from '@/utils/shortcuts';
-import { trackEvent } from '@/utils/analytics';
+import { trackEvent } from '@/utils/track-event';
 
 interface PlatformConfig {
   platform: EmailPlatform;
@@ -269,6 +269,14 @@ function highlightCurrentRow(config: PlatformConfig, analysis: EmailAnalysis): v
 }
 
 const processedRows = new Set<string>();
+const MAX_PROCESSED_ROWS = 300;
+
+function trimProcessedRows(): void {
+  if (processedRows.size <= MAX_PROCESSED_ROWS) return;
+  const keep = [...processedRows].slice(-150);
+  processedRows.clear();
+  keep.forEach((id) => processedRows.add(id));
+}
 
 async function processVisibleRows(config: PlatformConfig): Promise<void> {
   const rows = document.querySelectorAll(config.rowSelector);
@@ -279,6 +287,7 @@ async function processVisibleRows(config: PlatformConfig): Promise<void> {
     if (parsed.body.length < 20) continue;
 
     processedRows.add(parsed.id);
+    trimProcessedRows();
 
     try {
       const analysis = await sendMessage<EmailAnalysis>('ANALYZE_EMAIL', { email: parsed });

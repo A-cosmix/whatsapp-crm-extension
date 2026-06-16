@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { DarkModeToggle } from '@/components/DarkModeToggle';
 import { AnalyticsMini } from '@/components/AnalyticsDashboard';
 import { OnboardingTutorial } from '@/components/OnboardingTutorial';
+import { Toast, type ToastVariant } from '@/components/Toast';
 import { useTheme } from '@/hooks/use-theme';
 import type { ApiUsageStats, EmailAnalysis, OnboardingState, UserPreferences } from '@/types';
 import { DEFAULT_PREFERENCES, PRIORITY_COLORS, SENTIMENT_EMOJI } from '@/types';
@@ -27,6 +28,7 @@ export function Popup(): React.ReactElement {
   const [loading, setLoading] = useState(true);
   const [digestLoading, setDigestLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [toast, setToast] = useState<{ message: string; variant: ToastVariant } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -69,9 +71,12 @@ export function Popup(): React.ReactElement {
     setDigestLoading(true);
     try {
       await sendMessage('GENERATE_WEEKLY_DIGEST');
-      alert('Weekly digest generated! Check notifications.');
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to generate digest');
+      setToast({ message: 'Weekly digest generated! Check your notifications.', variant: 'success' });
+    } catch {
+      setToast({
+        message: 'Could not generate the weekly digest. Check your API key and try again.',
+        variant: 'error',
+      });
     } finally {
       setDigestLoading(false);
     }
@@ -235,9 +240,17 @@ export function Popup(): React.ReactElement {
           {digestLoading ? 'Generating...' : '📊 Generate Weekly Digest'}
         </button>
         <p className="text-center text-[10px] text-slate-400 mt-1">
-          {prefs?.shortcuts?.summarize ?? 'Alt+S'} to summarize · v1.0.0
+          {prefs?.shortcuts?.summarize ?? 'Alt+S'} to summarize · v1.0.1
         </p>
       </footer>
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

@@ -70,7 +70,12 @@ chrome.runtime.onInstalled.addListener(() => {
       id: 'snooze-parent',
       title: 'Snooze until...',
       contexts: ['page'],
-      documentUrlPatterns: ['https://mail.google.com/*', 'https://outlook.live.com/*'],
+      documentUrlPatterns: [
+        'https://mail.google.com/*',
+        'https://outlook.live.com/*',
+        'https://outlook.office.com/*',
+        'https://outlook.office365.com/*',
+      ],
     });
 
     const options = [

@@ -144,7 +144,14 @@ function extractJsonFromResponse(text: string): string {
   return trimmed;
 }
 
-export async function callClaudeApi(
+const RETRYABLE_CODES: ApiError['code'][] = ['RATE_LIMIT', 'NETWORK', 'TIMEOUT'];
+const MAX_API_RETRIES = 2;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function callClaudeApiOnce(
   apiKey: string,
   prompt: string,
   maxTokens = 500,
@@ -224,6 +231,30 @@ export async function callClaudeApi(
   });
 
   return { text, usage };
+}
+
+/** Public API with automatic retry for transient failures */
+export async function callClaudeApi(
+  apiKey: string,
+  prompt: string,
+  maxTokens = 500,
+  requestType: ApiRequestType = 'other',
+): Promise<{ text: string; usage: { input_tokens: number; output_tokens: number } }> {
+  let lastError: ApiError | undefined;
+
+  for (let attempt = 0; attempt <= MAX_API_RETRIES; attempt++) {
+    try {
+      return await callClaudeApiOnce(apiKey, prompt, maxTokens, requestType);
+    } catch (err) {
+      lastError = err as ApiError;
+      const canRetry =
+        attempt < MAX_API_RETRIES && RETRYABLE_CODES.includes(lastError.code ?? 'UNKNOWN');
+      if (!canRetry) throw err;
+      await sleep(1000 * 2 ** attempt);
+    }
+  }
+
+  throw lastError ?? { code: 'UNKNOWN', message: 'Request failed after retries.' };
 }
 
 export async function validateApiKey(apiKey: string): Promise<{
