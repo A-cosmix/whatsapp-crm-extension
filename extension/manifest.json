@@ -1,0 +1,77 @@
+{
+  "manifest_version": 3,
+  "name": "Explain Like WhatsApp",
+  "description": "Convert difficult internet content into ultra-simple, human-friendly explanations instantly",
+  "version": "1.0.0",
+  "icons": {
+    "16": "public/icon/16.png",
+    "48": "public/icon/48.png",
+    "128": "public/icon/128.png"
+  },
+  "action": {
+    "default_popup": "src/popup/index.html",
+    "default_icon": {
+      "16": "public/icon/16.png",
+      "48": "public/icon/48.png",
+      "128": "public/icon/128.png"
+    },
+    "default_title": "Explain Like WhatsApp"
+  },
+  "options_ui": {
+    "page": "src/options/index.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.tsx"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://www.youtube.com/*"],
+      "js": ["src/content/youtube.tsx"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*/*.pdf", "file://*/*.pdf"],
+      "js": ["src/content/pdf-handler.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "contextMenus",
+    "notifications",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://api.anthropic.com/*",
+    "https://*.firebaseapp.com/*",
+    "https://*.googleapis.com/*",
+    "https://api.razorpay.com/*",
+    "https://checkout.razorpay.com/*",
+    "<all_urls>"
+  ],
+  "commands": {
+    "explain-selection": {
+      "suggested_key": {
+        "default": "Alt+E",
+        "mac": "Alt+E"
+      },
+      "description": "Explain selected text"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["public/icon/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

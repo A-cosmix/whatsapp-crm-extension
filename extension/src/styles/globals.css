@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  padding: 0;
+  width: 400px;
+  min-height: 500px;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl border border-white/30;
+  }
+  .glass-dark {
+    @apply bg-gray-900/90 backdrop-blur-xl border border-white/10;
+  }
+  .btn-primary {
+    @apply w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+  }
+  .btn-primary:hover {
+    @apply shadow-lg scale-[1.02];
+    box-shadow: 0 8px 25px rgba(37, 211, 102, 0.4);
+  }
+  .btn-secondary {
+    @apply w-full py-3 px-4 rounded-xl font-semibold border border-gray-200 bg-white text-gray-700 transition-all duration-200 hover:bg-gray-50;
+  }
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border border-gray-200 bg-white/50 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-all;
+  }
+  .card {
+    @apply rounded-2xl p-4 transition-all duration-200;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
