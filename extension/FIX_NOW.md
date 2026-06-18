@@ -1,11 +1,17 @@
-# Extension Kaam Nahi Kar Raha? — 2 Minute Fix
+# Extension Fix — v1.0.2 (Firebase Error Fix)
 
-## Error: "Extension context invalidated"
+## Error jo tumhe dikha:
+```
+No document to update: .../users/xxxxx
+```
 
-Yeh tab hota hai jab extension reload hui lekin webpage purani hai.
+**Matlab:** Login ho gaya lekin Firestore mein user profile document nahi bana. Ab code automatically bana dega.
 
-### EXACT steps (copy-paste):
+---
 
+## EXACT Steps (ek ek karke):
+
+### STEP 1 — Terminal kholo, yeh paste karo:
 ```bash
 cd ~/whatsapp-crm-extension
 git pull origin main
@@ -13,20 +19,41 @@ cd extension
 npm run build
 ```
 
-### Chrome mein:
+Wait karo jab tak `✓ built` na dikhe.
 
+### STEP 2 — Chrome update
+Top-right **"Relaunch to update"** dabao (agar dikhe).
+
+### STEP 3 — Extension reload
 1. Address bar: `chrome://extensions`
-2. **Explain Like WhatsApp** → **Reload** button dabao
-3. Version check: **1.0.1** dikhna chahiye
-4. BBC/Wikipedia tab par jao → **F5** dabao
-5. Text select karo → **Explain** dabao
+2. **Explain Like WhatsApp** dhundo
+3. **Reload** (🔄) button dabao
+4. **Version 1.0.2** check karo (pehle 1.0.0 tha)
 
-### Agar "Relaunch to update" dikhe (Chrome top-right):
+### STEP 4 — Errors clear karo
+1. Extension card par **Errors** (red) dabao
+2. **Clear all** dabao
 
-Pehle woh dabao, phir upar ke steps karo.
+### STEP 5 — Extension logout/login
+1. Extension icon dabao
+2. Settings ⚙️ → **Logout**
+3. Phir se **Login** karo (same email/password)
 
-### v1.0.1 mein kya naya hai:
+### STEP 6 — Website par test
+1. BBC ya koi article kholo
+2. **F5** dabao (page refresh)
+3. Paragraph select karo
+4. **💬 Explain** dabao
+5. 30-60 second wait karo
 
-- Extension reload hone par tabs **auto-refresh**
-- Context dead ho to page **khud reload** (ek baar)
-- GenZ/saare modes trial mein free
+---
+
+## Version check (important!)
+
+| Version | Status |
+|---------|--------|
+| 1.0.0 | ❌ Purana — kaam nahi karega |
+| 1.0.1 | ⚠️ Partial fix |
+| 1.0.2 | ✅ Latest — Firebase error fix |
+
+`chrome://extensions` par **1.0.2** dikhe tab sahi hai.

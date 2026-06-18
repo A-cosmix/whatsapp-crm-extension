@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/types';
-import { onAuthChange, getUserProfile } from '@/services/auth/firebase-auth';
+import { onAuthChange, getUserProfile, ensureUserProfile } from '@/services/auth/firebase-auth';
 import { getLocalProfile, saveLocalProfile } from '@/services/storage/indexed-db';
 
 export function useAuth() {
@@ -26,8 +26,18 @@ export function useAuth() {
             };
             setUser(merged);
             await saveLocalProfile(merged as unknown as Record<string, unknown>);
-          } else if (local) {
-            setUser(local as unknown as UserProfile);
+          } else {
+            try {
+              const created = await ensureUserProfile(firebaseUser.uid);
+              const merged = {
+                ...created,
+                onboardingComplete: created.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
+              };
+              setUser(merged);
+              await saveLocalProfile(merged as unknown as Record<string, unknown>);
+            } catch {
+              if (local) setUser(local as unknown as UserProfile);
+            }
           }
         } catch {
           if (local) setUser(local as unknown as UserProfile);

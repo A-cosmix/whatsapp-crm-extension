@@ -16,7 +16,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   deleteDoc,
   collection,
   query,
@@ -127,9 +126,29 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
   return docSnap.data() as UserProfile;
 }
 
+export async function ensureUserProfile(uid: string): Promise<UserProfile> {
+  const existing = await getUserProfile(uid);
+  if (existing) return existing;
+
+  const { auth: firebaseAuth, db: firestore } = getFirebase();
+  const authUser = firebaseAuth.currentUser;
+  if (!authUser || authUser.uid !== uid) {
+    throw new Error('User profile not found. Please sign in again.');
+  }
+
+  const profile = createDefaultProfile(authUser);
+  await setDoc(doc(firestore, 'users', uid), profile);
+  return profile;
+}
+
 export async function updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
   const { db: firestore } = getFirebase();
-  await updateDoc(doc(firestore, 'users', uid), updates);
+  const userRef = doc(firestore, 'users', uid);
+  const snap = await getDoc(userRef);
+  if (!snap.exists()) {
+    await ensureUserProfile(uid);
+  }
+  await setDoc(userRef, updates, { merge: true });
 }
 
 export async function deleteUserAccount(uid: string): Promise<void> {
@@ -174,8 +193,7 @@ export function canUseFeature(profile: UserProfile | null, _isPremiumMode = fals
 }
 
 export async function incrementUsage(uid: string): Promise<void> {
-  const profile = await getUserProfile(uid);
-  if (!profile) return;
+  const profile = (await getUserProfile(uid)) ?? (await ensureUserProfile(uid));
 
   const today = new Date().toISOString().split('T')[0];
   const isNewDay = profile.lastExplanationDate !== today;
