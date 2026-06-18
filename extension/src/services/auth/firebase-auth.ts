@@ -192,6 +192,62 @@ export function canUseFeature(profile: UserProfile | null, _isPremiumMode = fals
   return { allowed: true };
 }
 
+export async function incrementUsageLocal(uid: string): Promise<void> {
+  const { getLocalProfile, saveLocalProfile } = await import('@/services/storage/indexed-db');
+  const profile = await getLocalProfile();
+  if (!profile || profile.uid !== uid) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const isNewDay = profile.lastExplanationDate !== today;
+  const dailyCount = profile.dailyExplanationCount as number;
+  const newCount = isNewDay ? 1 : dailyCount + 1;
+
+  let newStreak = profile.streak as number;
+  if (isNewDay) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    newStreak = profile.lastExplanationDate === yesterdayStr ? (profile.streak as number) + 1 : 1;
+  }
+
+  await saveLocalProfile({
+    ...profile,
+    dailyExplanationCount: newCount,
+    lastExplanationDate: today,
+    streak: newStreak,
+    longestStreak: Math.max(profile.longestStreak as number, newStreak),
+    totalExplanations: (profile.totalExplanations as number) + 1,
+  });
+}
+
+/** Sync local profile to Firestore — call from popup where user is authenticated */
+export async function syncProfileToFirestore(uid: string): Promise<void> {
+  const { getLocalProfile } = await import('@/services/storage/indexed-db');
+  const local = await getLocalProfile();
+  if (!local || local.uid !== uid) return;
+
+  await updateUserProfile(uid, {
+    dailyExplanationCount: local.dailyExplanationCount as number,
+    lastExplanationDate: local.lastExplanationDate as string,
+    streak: local.streak as number,
+    longestStreak: local.longestStreak as number,
+    totalExplanations: local.totalExplanations as number,
+    onboardingComplete: local.onboardingComplete as boolean,
+    preferredMode: local.preferredMode as UserProfile['preferredMode'],
+  });
+}
+
+export async function saveExplanationHistorySafe(
+  uid: string,
+  record: { originalText: string; explanation: string; mode: string; url: string; pageTitle: string },
+): Promise<void> {
+  try {
+    await saveExplanationHistory(uid, record);
+  } catch {
+    // History is optional — never block explanations
+  }
+}
+
 export async function incrementUsage(uid: string): Promise<void> {
   const profile = (await getUserProfile(uid)) ?? (await ensureUserProfile(uid));
 

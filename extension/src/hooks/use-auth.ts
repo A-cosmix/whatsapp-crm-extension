@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/types';
-import { onAuthChange, getUserProfile, ensureUserProfile } from '@/services/auth/firebase-auth';
+import { onAuthChange, getUserProfile, ensureUserProfile, syncProfileToFirestore } from '@/services/auth/firebase-auth';
 import { getLocalProfile, saveLocalProfile } from '@/services/storage/indexed-db';
 
 export function useAuth() {
@@ -26,6 +26,7 @@ export function useAuth() {
             };
             setUser(merged);
             await saveLocalProfile(merged as unknown as Record<string, unknown>);
+            void syncProfileToFirestore(firebaseUser.uid).catch(() => {});
           } else {
             try {
               const created = await ensureUserProfile(firebaseUser.uid);
@@ -35,6 +36,7 @@ export function useAuth() {
               };
               setUser(merged);
               await saveLocalProfile(merged as unknown as Record<string, unknown>);
+              void syncProfileToFirestore(firebaseUser.uid).catch(() => {});
             } catch {
               if (local) setUser(local as unknown as UserProfile);
             }

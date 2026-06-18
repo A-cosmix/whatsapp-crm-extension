@@ -21,10 +21,11 @@ import {
 import { trackAnalytics, incrementMetric } from '@/services/analytics/tracker';
 import {
   getUserProfile,
-  incrementUsage,
+  incrementUsageLocal,
   canUseFeature,
-  saveExplanationHistory,
+  saveExplanationHistorySafe,
   getSubscriptionStatus,
+  syncProfileToFirestore,
 } from '@/services/auth/firebase-auth';
 import { verifyPayment } from '@/services/payments/razorpay';
 import type { ExplanationRecord, DailyLearningReport } from '@/types';
@@ -56,10 +57,12 @@ async function handleExplainText(payload: ExplainTextPayload) {
   await cacheExplanation(record);
 
   if (profile?.uid) {
-    await incrementUsage(profile.uid as string);
-    await saveExplanationHistory(profile.uid as string, { originalText: text, explanation, mode, url, pageTitle });
-    const updated = await getUserProfile(profile.uid as string);
-    if (updated) await saveLocalProfile(updated as unknown as Record<string, unknown>);
+    const uid = profile.uid as string;
+    await incrementUsageLocal(uid);
+    // Firestore writes from service worker often fail (no auth session here).
+    // Sync happens from popup; never block the explanation response.
+    void syncProfileToFirestore(uid).catch(() => {});
+    void saveExplanationHistorySafe(uid, { originalText: text, explanation, mode, url, pageTitle });
   }
 
   await incrementMetric(mode);
