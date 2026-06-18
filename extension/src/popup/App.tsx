@@ -42,7 +42,7 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
         <button onClick={onGetStarted} className="btn-primary text-base">
           Get Started Free 🚀
         </button>
-        <p className="text-center text-[10px] text-gray-400">5-day free trial • 30 explanations/day • No credit card</p>
+        <p className="text-center text-[10px] text-gray-400">3-day free trial • 30 explanations/day • No credit card</p>
       </div>
     </div>
   );

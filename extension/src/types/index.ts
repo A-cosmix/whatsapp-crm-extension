@@ -145,7 +145,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'youtube-guru', name: 'YouTube Guru', emoji: '📺', description: 'Summarize 5 videos', requirement: 5 },
 ];
 
-export const FREE_TRIAL_DAYS = 5;
+export const FREE_TRIAL_DAYS = 3;
 export const FREE_DAILY_LIMIT = 30;
 export const FREE_EXPIRED_DAILY_LIMIT = 5;
 export const PAID_PLAN_PRICE_INR = 150;

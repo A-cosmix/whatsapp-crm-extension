@@ -3,3 +3,5 @@ explain-like-whatsapp.zip
 node_modules/
 dist/
 .env
+functions/node_modules/
+functions/lib/
