@@ -1,7 +1,15 @@
+export function isExtensionContextValid(): boolean {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
 export function sendMessage<T = Record<string, unknown>>(type: string, payload?: Record<string, unknown>): Promise<T> {
   return new Promise((resolve, reject) => {
     try {
-      if (!chrome?.runtime?.id) {
+      if (!isExtensionContextValid()) {
         reject(new Error('EXTENSION_CONTEXT_INVALID'));
         return;
       }
@@ -17,12 +25,26 @@ export function sendMessage<T = Record<string, unknown>>(type: string, payload?:
           }
           return;
         }
+        if (response === undefined) {
+          reject(new Error('Extension is waking up. 5 second wait karo, phir try karo.'));
+          return;
+        }
         resolve(response as T);
       });
     } catch {
       reject(new Error('EXTENSION_CONTEXT_INVALID'));
     }
   });
+}
+
+export async function pingExtension(): Promise<boolean> {
+  if (!isExtensionContextValid()) return false;
+  try {
+    const res = await sendMessage<{ success: boolean }>('PING');
+    return res?.success === true;
+  } catch {
+    return false;
+  }
 }
 
 const JUNK_TEXT_PATTERNS = [

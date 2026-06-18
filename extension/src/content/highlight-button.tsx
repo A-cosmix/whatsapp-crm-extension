@@ -4,7 +4,31 @@ import { WordExplainer } from './word-explainer';
 import { FocusMode } from './focus-mode';
 import type { ExplanationMode } from '@/types';
 import { getSettings } from '@/services/storage/indexed-db';
-import { isValidExplainSelection } from '@/utils/helpers';
+import { isValidExplainSelection, isExtensionContextValid, pingExtension } from '@/utils/helpers';
+
+function RefreshBanner({ onRefresh }: { onRefresh: () => void }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+        zIndex: 2147483647, background: '#dc2626', color: 'white', padding: '14px 20px',
+        borderRadius: '12px', fontSize: '14px', fontWeight: 600, fontFamily: 'system-ui,sans-serif',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.25)', textAlign: 'center', maxWidth: '90vw',
+      }}
+    >
+      <div>⚠️ Extension reload ho gayi — pehle page refresh karo!</div>
+      <button
+        onClick={onRefresh}
+        style={{
+          marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
+          background: 'white', color: '#dc2626', cursor: 'pointer', fontWeight: 700,
+        }}
+      >
+        🔄 Abhi Refresh Karo (F5)
+      </button>
+    </div>
+  );
+}
 
 export function HighlightExplainer() {
   const [selectedText, setSelectedText] = useState('');
@@ -15,7 +39,25 @@ export function HighlightExplainer() {
   const [wordExplainerEnabled, setWordExplainerEnabled] = useState(true);
   const [focusModeActive, setFocusModeActive] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showRefreshBanner, setShowRefreshBanner] = useState(false);
   const selectionTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  useEffect(() => {
+    if (!isExtensionContextValid()) {
+      setShowRefreshBanner(true);
+    }
+  }, []);
+
+  const openExplainPopup = async (text: string) => {
+    if (!isExtensionContextValid() || !(await pingExtension())) {
+      setShowRefreshBanner(true);
+      setShowButton(false);
+      return;
+    }
+    setSelectedText(text);
+    setShowPopup(true);
+    setShowButton(false);
+  };
 
   useEffect(() => {
     getSettings().then((s) => {
@@ -61,18 +103,17 @@ export function HighlightExplainer() {
       if (message.type === 'TRIGGER_EXPLAIN' && message.payload?.text) {
         const text = message.payload.text.trim();
         if (isValidExplainSelection(text)) {
-          setSelectedText(text);
-          setShowPopup(true);
-          setShowButton(false);
+          void openExplainPopup(text);
         }
       }
       if (message.type === 'TRIGGER_EXPLAIN_SHORTCUT') {
         const text = window.getSelection()?.toString().trim();
         if (text && isValidExplainSelection(text)) {
-          setSelectedText(text);
-          setShowPopup(true);
-          setShowButton(false);
+          void openExplainPopup(text);
         }
+      }
+      if (message.type === 'EXTENSION_UPDATED') {
+        setShowRefreshBanner(true);
       }
       if (message.type === 'TOGGLE_FOCUS_MODE') {
         setFocusModeActive((prev) => !prev);
@@ -88,12 +129,14 @@ export function HighlightExplainer() {
   }, []);
 
   const handleExplainClick = () => {
-    setShowPopup(true);
-    setShowButton(false);
+    void openExplainPopup(selectedText);
   };
 
   return (
     <>
+      {showRefreshBanner && (
+        <RefreshBanner onRefresh={() => window.location.reload()} />
+      )}
       {showHint && (
         <div
           style={{

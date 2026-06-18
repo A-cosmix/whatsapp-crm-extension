@@ -151,6 +151,7 @@ export const PAID_PLAN_PRICE_INR = 150;
 export const CACHE_TTL_DAYS = 30;
 
 export type MessageType =
+  | 'PING'
   | 'EXPLAIN_TEXT'
   | 'EXPLAIN_WORD'
   | 'GENERATE_NOTES'

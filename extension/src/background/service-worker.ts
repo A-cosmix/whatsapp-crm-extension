@@ -157,6 +157,22 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/index.html') });
   }
 
+  if (details.reason === 'update' || details.reason === 'install') {
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'public/icon/128.png',
+      title: 'Explain Like WhatsApp',
+      message: 'Extension update hui! Open tabs par F5 dabao, phir Explain kaam karega.',
+    });
+
+    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, { type: 'EXTENSION_UPDATED' }).catch(() => {});
+      }
+    }
+  }
+
   await clearExpiredCache();
   chrome.alarms.create('cache-cleanup', { periodInMinutes: 1440 });
   chrome.alarms.create('daily-report', { periodInMinutes: 1440 });
@@ -214,6 +230,9 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendRe
 
 async function handleMessage(message: ExtensionMessage) {
   switch (message.type) {
+    case 'PING':
+      return { success: true };
+
     case 'EXPLAIN_TEXT':
       return handleExplainText(message.payload as unknown as ExplainTextPayload);
 
