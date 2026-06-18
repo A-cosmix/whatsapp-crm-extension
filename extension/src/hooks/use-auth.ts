@@ -15,14 +15,22 @@ export function useAuth() {
 
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
+        const local = await getLocalProfile();
         try {
-          const profile = await getUserProfile(firebaseUser.uid);
-          if (profile) {
-            setUser(profile);
-            await saveLocalProfile(profile as unknown as Record<string, unknown>);
+          const remote = await getUserProfile(firebaseUser.uid);
+          if (remote) {
+            // Keep local onboarding flag if Firestore hasn't synced yet
+            const merged = {
+              ...remote,
+              onboardingComplete: remote.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
+            };
+            setUser(merged);
+            await saveLocalProfile(merged as unknown as Record<string, unknown>);
+          } else if (local) {
+            setUser(local as unknown as UserProfile);
           }
         } catch {
-          // Firestore may be unavailable — use cached local profile
+          if (local) setUser(local as unknown as UserProfile);
         }
       } else {
         setUser(null);

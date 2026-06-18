@@ -51,9 +51,10 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
 export function App() {
   const { user, loading, refresh, setUser } = useAuth();
   const [page, setPage] = useState<Page>('landing');
+  const [onboardingDone, setOnboardingDone] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && page !== 'dashboard' && page !== 'settings' && page !== 'subscription' && page !== 'report' && page !== 'notes') {
+    if (!loading && user && !onboardingDone && page !== 'settings' && page !== 'subscription' && page !== 'report' && page !== 'notes') {
       if (!user.onboardingComplete) {
         setPage('onboarding');
       } else {
@@ -61,22 +62,20 @@ export function App() {
         setPage(status === 'expired' ? 'subscription' : 'dashboard');
       }
     }
-  }, [user, loading]);
+  }, [user, loading, onboardingDone]);
 
-  const handleOnboardingComplete = async () => {
-    // Go to dashboard immediately — don't wait for Firestore
+  const handleOnboardingComplete = () => {
+    setOnboardingDone(true);
     setPage('dashboard');
 
     if (user) {
       const updated = { ...user, onboardingComplete: true };
-      await saveLocalProfile(updated as unknown as Record<string, unknown>);
+      setUser(updated);
+      saveLocalProfile(updated as unknown as Record<string, unknown>);
+      chrome.storage.local.set({ onboardingComplete: true });
 
-      try {
-        await updateUserProfile(user.uid, { onboardingComplete: true });
-        await refresh();
-      } catch {
-        // Firestore may be slow — local state already updated
-      }
+      // Sync to Firestore in background — never block UI
+      updateUserProfile(user.uid, { onboardingComplete: true }).catch(() => {});
     }
   };
 

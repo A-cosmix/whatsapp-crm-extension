@@ -38,14 +38,11 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
 
-  const handleFinish = async () => {
+  const handleFinish = () => {
     if (finishing) return;
     setFinishing(true);
-    try {
-      await onComplete();
-    } finally {
-      setFinishing(false);
-    }
+    onComplete();
+    setFinishing(false);
   };
 
   return (
