@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explain Like WhatsApp — AI Chrome Extension</title>
+  <meta name="description" content="Kisi bhi mushkil text ko WhatsApp jaisa simple explanation mein badlo. 3-day free trial, ₹150/year Pro." />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 50%, #f0fdf4 100%);
+      color: #1f2937;
+      line-height: 1.6;
+    }
+    .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+    header { text-align: center; padding: 3rem 0 2rem; }
+    .logo { font-size: 4rem; margin-bottom: 1rem; }
+    h1 {
+      font-size: 2.25rem;
+      background: linear-gradient(135deg, #059669, #047857);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.75rem;
+    }
+    .subtitle { color: #6b7280; font-size: 1.125rem; max-width: 540px; margin: 0 auto 2rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 2rem; }
+    .tag {
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      padding: 0.35rem 0.85rem;
+      font-size: 0.875rem;
+      color: #374151;
+    }
+    .cta {
+      display: inline-block;
+      background: #25D366;
+      color: white;
+      text-decoration: none;
+      padding: 1rem 2rem;
+      border-radius: 1rem;
+      font-weight: 700;
+      font-size: 1.125rem;
+      box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4);
+      transition: transform 0.2s;
+    }
+    .cta:hover { transform: translateY(-2px); }
+    .cta-note { display: block; margin-top: 0.75rem; font-size: 0.75rem; color: #9ca3af; }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.25rem;
+      margin: 3rem 0;
+    }
+    .feature {
+      background: white;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .feature-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .feature h3 { font-size: 1rem; margin-bottom: 0.35rem; }
+    .feature p { font-size: 0.875rem; color: #6b7280; }
+    .pricing {
+      text-align: center;
+      background: linear-gradient(135deg, #059669, #047857);
+      color: white;
+      border-radius: 1.5rem;
+      padding: 2.5rem;
+      margin: 2rem 0;
+    }
+    .pricing .price { font-size: 3rem; font-weight: 800; }
+    .pricing .period { opacity: 0.9; margin-bottom: 1rem; }
+    .pricing ul { list-style: none; text-align: left; max-width: 320px; margin: 1.5rem auto 0; font-size: 0.9rem; }
+    .pricing li { padding: 0.25rem 0; }
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #9ca3af;
+      font-size: 0.875rem;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 2rem;
+    }
+    footer a { color: #059669; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">💬</div>
+      <h1>Explain Like WhatsApp</h1>
+      <p class="subtitle">
+        Internet par jo bhi mushkil ho — select karo, explain karo. WhatsApp jaisa simple, fun aur samajhne layak.
+      </p>
+      <div class="tags">
+        <span class="tag">💬 WhatsApp Mode</span>
+        <span class="tag">🇮🇳 Hindi Mode</span>
+        <span class="tag">🔥 GenZ Mode</span>
+        <span class="tag">📝 Exam Notes</span>
+        <span class="tag">📺 YouTube</span>
+        <span class="tag">📄 PDF</span>
+      </div>
+      <a href="https://chrome.google.com/webstore" class="cta" id="download-btn">
+        Chrome Extension Download Karo 🚀
+      </a>
+      <span class="cta-note">3-day free trial • No credit card • ₹150/year Pro</span>
+    </header>
+
+    <div class="features">
+      <div class="feature">
+        <div class="feature-icon">✨</div>
+        <h3>Highlight & Explain</h3>
+        <p>Kisi bhi website par text select karo. Alt+E ya floating button — instant explanation.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🎭</div>
+        <h3>12 Explanation Modes</h3>
+        <p>WhatsApp, Hindi, GenZ, Teacher, Exam Notes, Meme — har mood ke liye alag style.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">📚</div>
+        <h3>PDF & YouTube</h3>
+        <p>PDF simplify, YouTube summarize, study notes banao aur export karo.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">💳</div>
+        <h3>Auto Payment</h3>
+        <p>Razorpay se pay karo — Pro turant activate. UPI, Card sab supported.</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔥</div>
+        <h3>Streaks & Achievements</h3>
+        <p>Roz seekho, streak banao, achievements unlock karo!</p>
+      </div>
+      <div class="feature">
+        <div class="feature-icon">🔒</div>
+        <h3>Privacy First</h3>
+        <p>Sirf selected text process hota hai. Aapka data safe hai.</p>
+      </div>
+    </div>
+
+    <div class="pricing">
+      <div class="price">₹150</div>
+      <div class="period">per year — sirf ₹13/month</div>
+      <ul>
+        <li>✅ Unlimited explanations</li>
+        <li>✅ Saare 12 modes</li>
+        <li>✅ PDF + YouTube tools</li>
+        <li>✅ Study notes & focus mode</li>
+        <li>✅ Payment ke baad instant Pro</li>
+      </ul>
+    </div>
+
+    <footer>
+      <p>Made with 💚 in India</p>
+      <p style="margin-top:0.5rem">
+        <a href="../extension/public/privacy.html">Privacy Policy</a>
+        &nbsp;•&nbsp;
+        <a href="mailto:support@explainlikewhatsapp.com">Contact</a>
+      </p>
+      <p style="margin-top:0.5rem;font-size:0.75rem">© 2026 Explain Like WhatsApp</p>
+    </footer>
+  </div>
+</body>
+</html>

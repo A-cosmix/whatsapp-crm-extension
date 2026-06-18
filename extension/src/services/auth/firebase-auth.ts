@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import type { UserProfile, SubscriptionStatus } from '@/types';
 import { FREE_TRIAL_DAYS, FREE_DAILY_LIMIT, FREE_EXPIRED_DAILY_LIMIT } from '@/types';
+import { getDeviceId } from '@/utils/device-id';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'YOUR_FIREBASE_API_KEY',
@@ -51,9 +52,9 @@ function getFirebase() {
   return { app, auth, db };
 }
 
-function createDefaultProfile(user: User): UserProfile {
+function createDefaultProfile(user: User, withTrial = true): UserProfile {
   const now = Date.now();
-  const trialEnd = now + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const trialEnd = withTrial ? now + FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000 : now;
   return {
     uid: user.uid,
     email: user.email || '',
@@ -61,7 +62,7 @@ function createDefaultProfile(user: User): UserProfile {
     createdAt: now,
     trialStartDate: now,
     trialEndDate: trialEnd,
-    subscriptionStatus: 'trial',
+    subscriptionStatus: withTrial ? 'trial' : 'expired',
     dailyExplanationCount: 0,
     lastExplanationDate: new Date().toISOString().split('T')[0],
     streak: 0,
@@ -75,15 +76,47 @@ function createDefaultProfile(user: User): UserProfile {
   };
 }
 
+async function checkTrialEligibility(email: string, deviceId: string): Promise<boolean> {
+  const { db: firestore } = getFirebase();
+  const emailKey = email.toLowerCase().trim();
+  const [emailSnap, deviceSnap] = await Promise.all([
+    getDoc(doc(firestore, 'trial_registry', emailKey)),
+    getDoc(doc(firestore, 'trial_devices', deviceId)),
+  ]);
+  return !emailSnap.exists() && !deviceSnap.exists();
+}
+
+async function registerTrialUsage(uid: string, email: string, deviceId: string): Promise<void> {
+  const { db: firestore } = getFirebase();
+  const emailKey = email.toLowerCase().trim();
+  const now = Date.now();
+  await Promise.all([
+    setDoc(doc(firestore, 'trial_registry', emailKey), { uid, email: emailKey, createdAt: now }),
+    setDoc(doc(firestore, 'trial_devices', deviceId), { uid, email: emailKey, createdAt: now }),
+  ]);
+}
+
 export async function signUp(email: string, password: string, displayName: string): Promise<UserProfile> {
   const { auth: firebaseAuth, db: firestore } = getFirebase();
+  const deviceId = await getDeviceId();
+
   const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
   await updateProfile(credential.user, { displayName });
   await sendEmailVerification(credential.user);
 
-  const profile = createDefaultProfile(credential.user);
+  const trialAllowed = await checkTrialEligibility(email, deviceId);
+  const profile = createDefaultProfile(credential.user, trialAllowed);
   profile.displayName = displayName;
   await setDoc(doc(firestore, 'users', credential.user.uid), profile);
+
+  if (trialAllowed) {
+    try {
+      await registerTrialUsage(credential.user.uid, email, deviceId);
+    } catch {
+      // Registry write failed — profile still created
+    }
+  }
+
   return profile;
 }
 
