@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Sidebar } from './components';
 import { AuroraBackground } from './components/aurora-background';
@@ -28,13 +28,14 @@ const queryClient = new QueryClient({
 export function AppShell() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <HashRouter>
         <div className="flex min-h-screen bg-hiremate-bg relative">
           <AuroraBackground intensity="low" />
           <Sidebar />
           <main className="flex-1 overflow-y-auto relative z-10">
             <Routes>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/options.html" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/resume-analyzer" element={<ResumeAnalyzerPage />} />
               <Route path="/job-matcher" element={<JobMatcherPage />} />
@@ -48,10 +49,11 @@ export function AppShell() {
               <Route path="/career-roadmap" element={<CareerRoadmapPage />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </main>
         </div>
-      </BrowserRouter>
+      </HashRouter>
     </QueryClientProvider>
   );
 }
