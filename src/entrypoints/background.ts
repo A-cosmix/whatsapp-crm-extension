@@ -1,59 +1,114 @@
 import {
-  createBackgroundApp,
-  reRegisterAlarms,
-  scheduleAutoReply,
-  handleAutoReplyAlarm,
-  syncStateToUI,
-  serializeLead,
-  serializeLeadsForUI,
-  serializeReminder,
-  serializeCampaign,
-  serializeReviewItem,
-} from './background/bootstrap';
-import {
-  CreateLeadDtoSchema,
-  UpdateLeadStageDtoSchema,
-  CreateReminderDtoSchema,
-  ToggleAutoReplyDtoSchema,
-  CreateCampaignDtoSchema,
-  SnoozeReminderDtoSchema,
-  UpdateAIConfigDtoSchema,
-  UpdateCrmSyncDtoSchema,
-} from '@application/dto';
-import { MessageTypes } from '@domain/messages';
+  handleContextMenuClick,
+  handleRuntimeMessage,
+  setupContextMenus,
+} from '../momentum/background/message-handler';
+import { getSettings, getTimer, saveTimer } from '../momentum/services/storage';
+import { showNotification } from '../momentum/services/notifications';
+import { getReminders, saveReminders } from '../momentum/services/storage';
 
 export default defineBackground(() => {
-  const app = createBackgroundApp();
+  chrome.runtime.onInstalled.addListener(async (details) => {
+    await setupContextMenus();
 
-  chrome.runtime.onInstalled.addListener(async () => {
-    await reRegisterAlarms(app);
-    await syncStateToUI(app);
+    if (details.reason === 'install') {
+      const settings = await getSettings();
+      if (!settings.onboardingComplete) {
+        chrome.tabs.create({ url: chrome.runtime.getURL('onboarding.html') });
+      }
+    }
   });
 
   chrome.runtime.onStartup.addListener(async () => {
-    await reRegisterAlarms(app);
+    await setupContextMenus();
+  });
+
+  chrome.contextMenus.onClicked.addListener((info, tab) => {
+    handleContextMenuClick(info, tab).catch(console.error);
   });
 
   chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name.startsWith('reminder:')) {
-      const reminderId = alarm.name.replace('reminder:', '');
-      await app.handleReminderAlarm.execute(reminderId);
-      await syncStateToUI(app);
-    } else if (alarm.name.startsWith('campaign:')) {
-      const campaignId = alarm.name.replace('campaign:', '');
-      await app.executeCampaignStep.execute(campaignId);
-      await syncStateToUI(app);
-    } else if (alarm.name.startsWith('autoreply:')) {
-      const chatId = alarm.name.replace('autoreply:', '');
-      await handleAutoReplyAlarm(app, chatId);
+      const id = alarm.name.replace('reminder:', '');
+      const reminders = await getReminders();
+      const reminder = reminders.find((r) => r.id === id);
+      if (!reminder || reminder.completed) return;
+
+      await showNotification(reminder.title, reminder.body, {
+        id: `reminder-${id}`,
+        requireInteraction: true,
+      });
+
+      await saveReminders(
+        reminders.map((r) => (r.id === id ? { ...r, completed: true } : r)),
+      );
+      return;
+    }
+
+    if (alarm.name === 'mx-timer-tick') {
+      const timer = await getTimer();
+      if (!timer.isRunning || !timer.startedAt) return;
+
+      const settings = await getSettings();
+      const total = (timer.isBreak ? settings.breakDuration : settings.focusDuration) * 60;
+      const elapsed = Math.floor((Date.now() - timer.startedAt) / 1000);
+      const remaining = Math.max(0, total - elapsed);
+
+      if (remaining !== timer.remaining) {
+        const updated = { ...timer, remaining };
+        if (remaining === 0) {
+          updated.isRunning = false;
+          updated.startedAt = null;
+          await handleRuntimeMessage({
+            type: 'MX_UPDATE_TIMER',
+            payload: updated,
+          });
+        } else {
+          await saveTimer(updated);
+        }
+      }
     }
   });
 
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+  chrome.alarms.create('mx-timer-tick', { periodInMinutes: 1 });
+
+  chrome.commands.onCommand.addListener(async (command) => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+
+    switch (command) {
+      case 'open-sidebar':
+        await chrome.sidePanel.open({ tabId: tab.id });
+        break;
+      case 'summarize-page':
+        chrome.tabs.sendMessage(tab.id, { type: 'MX_TRIGGER_PAGE_SUMMARY' });
+        break;
+      case 'quick-note':
+        chrome.tabs.sendMessage(tab.id, { type: 'MX_QUICK_NOTE' });
+        break;
+      case 'toggle-timer': {
+        const timer = await getTimer();
+        const settings = await getSettings();
+        if (timer.isRunning) {
+          await handleRuntimeMessage({
+            type: 'MX_UPDATE_TIMER',
+            payload: { ...timer, isRunning: false, startedAt: null },
+          });
+        } else {
+          const duration = (timer.isBreak ? settings.breakDuration : settings.focusDuration) * 60;
+          await handleRuntimeMessage({
+            type: 'MX_UPDATE_TIMER',
+            payload: { ...timer, isRunning: true, remaining: duration, startedAt: Date.now() },
+          });
+        }
+        break;
+      }
+    }
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    handleMessage(message)
-      .then((result) => sendResponse({ success: true, data: result }))
+    handleRuntimeMessage(message)
+      .then((data) => sendResponse({ success: true, data }))
       .catch((error) =>
         sendResponse({
           success: false,
@@ -62,141 +117,4 @@ export default defineBackground(() => {
       );
     return true;
   });
-
-  async function handleMessage(message: { type: string; payload?: unknown }) {
-    switch (message.type) {
-      case 'GET_STATE': {
-        const [leads, reminders, campaigns, reviewQueue, settings] = await Promise.all([
-          app.getLeads.execute(),
-          app.getReminders.execute(),
-          app.getCampaigns.execute(),
-          app.getReviewQueue.execute(),
-          app.getSettings.execute(),
-        ]);
-        return {
-          leads: await serializeLeadsForUI(leads, app.autoReplyRepo),
-          reminders: reminders.map(serializeReminder),
-          campaigns: campaigns.map(serializeCampaign),
-          reviewQueue: reviewQueue.map(serializeReviewItem),
-          settings,
-        };
-      }
-
-      case 'CREATE_LEAD': {
-        const dto = CreateLeadDtoSchema.parse(message.payload);
-        const lead = await app.createLead.execute(dto);
-        await syncStateToUI(app);
-        return lead.toJSON();
-      }
-
-      case 'CAPTURE_LEAD_FROM_CHAT': {
-        const lead = await app.captureLeadFromChat.execute();
-        await syncStateToUI(app);
-        return serializeLead(lead);
-      }
-
-      case 'UPDATE_LEAD_STAGE': {
-        const dto = UpdateLeadStageDtoSchema.parse(message.payload);
-        const lead = await app.updateLeadStage.execute(dto);
-        await syncStateToUI(app);
-        return lead.toJSON();
-      }
-
-      case 'CREATE_REMINDER': {
-        const dto = CreateReminderDtoSchema.parse(message.payload);
-        const reminder = await app.createReminder.execute(dto);
-        await syncStateToUI(app);
-        return reminder.toJSON();
-      }
-
-      case 'SNOOZE_REMINDER': {
-        const dto = SnoozeReminderDtoSchema.parse(message.payload);
-        await app.snoozeReminder.execute(dto.reminderId, dto.snoozeUntil);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'DISMISS_REMINDER': {
-        const { reminderId } = message.payload as { reminderId: string };
-        await app.dismissReminder.execute(reminderId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'TOGGLE_AUTO_REPLY': {
-        const dto = ToggleAutoReplyDtoSchema.parse(message.payload);
-        const config = await app.toggleAutoReply.execute(dto);
-        await syncStateToUI(app);
-        return config.toJSON();
-      }
-
-      case 'CREATE_CAMPAIGN': {
-        const dto = CreateCampaignDtoSchema.parse(message.payload);
-        const campaign = await app.createCampaign.execute(dto);
-        await syncStateToUI(app);
-        return serializeCampaign(campaign);
-      }
-
-      case 'PAUSE_CAMPAIGN': {
-        const { campaignId } = message.payload as { campaignId: string };
-        await app.pauseCampaign.execute(campaignId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'CANCEL_CAMPAIGN': {
-        const { campaignId } = message.payload as { campaignId: string };
-        await app.cancelCampaign.execute(campaignId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'RESUME_CAMPAIGN': {
-        const { campaignId } = message.payload as { campaignId: string };
-        await app.resumeCampaign.execute(campaignId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'APPROVE_REVIEW': {
-        const { itemId } = message.payload as { itemId: string };
-        await app.approveReviewItem.execute(itemId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'REJECT_REVIEW': {
-        const { itemId } = message.payload as { itemId: string };
-        await app.rejectReviewItem.execute(itemId);
-        await syncStateToUI(app);
-        return { ok: true };
-      }
-
-      case 'UPDATE_AI_CONFIG': {
-        const dto = UpdateAIConfigDtoSchema.parse(message.payload);
-        return app.updateAIConfig.execute(dto);
-      }
-
-      case 'UPDATE_CRM_SYNC': {
-        const dto = UpdateCrmSyncDtoSchema.parse(message.payload);
-        return app.updateCrmSync.execute(dto);
-      }
-
-      case MessageTypes.MESSAGE_RECEIVED: {
-        const payload = message.payload as {
-          chatId: string;
-          messageText?: string;
-          text?: string;
-          messageId: string;
-          timestamp: number;
-          isGroup: boolean;
-        };
-        await scheduleAutoReply(app, payload);
-        return { queued: true };
-      }
-
-      default:
-        return null;
-    }
-  }
 });

@@ -1,10 +1,10 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { App } from './App';
-import '@ui/styles/globals.css';
+import { createRoot } from 'react-dom/client';
+import { ThemeProvider } from '@momentum/components/ThemeProvider';
+import { SidebarApp } from './App';
+import '@momentum/styles/globals.css';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+createRoot(document.getElementById('root')!).render(
+  <ThemeProvider>
+    <SidebarApp />
+  </ThemeProvider>,
 );
