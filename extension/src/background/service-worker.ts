@@ -19,6 +19,7 @@ import {
   getDailyReport,
 } from '@/services/storage/indexed-db';
 import { trackAnalytics, incrementMetric } from '@/services/analytics/tracker';
+import { checkAndUnlockAchievements, getModesUsedCount } from '@/services/gamification/achievements';
 import {
   getUserProfile,
   incrementUsageLocal,
@@ -40,6 +41,15 @@ async function recordExplanationUsage(
     await incrementMetric(data.mode);
     await trackAnalytics('explanation_generated', { mode: data.mode, url: data.url.slice(0, 100) }, profile?.uid as string);
     await updateDailyReport(data.mode, data.url, data.pageTitle);
+
+    const local = await getLocalProfile();
+    if (local) {
+      await checkAndUnlockAchievements({
+        totalExplanations: (local.totalExplanations as number) || 0,
+        streak: (local.streak as number) || 0,
+        modesUsedCount: await getModesUsedCount(),
+      });
+    }
   } catch {
     // Bookkeeping must never block explanations
   }
@@ -95,6 +105,10 @@ async function handleExplainText(payload: ExplainTextPayload) {
 }
 
 async function handleExplainWord(payload: ExplainWordPayload) {
+  const profile = await getLocalProfile();
+  const usageCheck = canUseFeature(profile as never, false);
+  if (!usageCheck.allowed) return { success: false, error: usageCheck.reason };
+
   const prompt = buildWordPrompt(payload.word, payload.context);
   const result = await explainWord(prompt);
   await trackAnalytics('word_explained', { word: payload.word });
@@ -186,20 +200,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/index.html') });
   }
 
-  if (details.reason === 'update' || details.reason === 'install') {
+  if (details.reason === 'update') {
     chrome.notifications.create({
       type: 'basic',
       iconUrl: 'public/icon/128.png',
-      title: 'Explain Like WhatsApp',
-      message: 'Extension update hui! Open tabs refresh ho rahi hain...',
+      title: 'Explain Like WhatsApp Updated',
+      message: 'Open tabs par F5 dabao taaki extension sahi kaam kare.',
     });
-
-    const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
-    for (const tab of tabs) {
-      if (tab.id) {
-        chrome.tabs.reload(tab.id).catch(() => {});
-      }
-    }
   }
 
   await clearExpiredCache();
@@ -229,6 +236,10 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 });
 
 async function sendDailyReportNotification() {
+  const settings = await chrome.storage.sync.get('settings');
+  const enabled = (settings.settings as { notificationsEnabled?: boolean })?.notificationsEnabled ?? true;
+  if (!enabled) return;
+
   const today = new Date().toISOString().split('T')[0];
   const report = await getDailyReport(today);
   if (!report || report.explanationsCount === 0) return;

@@ -23,6 +23,22 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
     window.close();
   };
 
+  const handleFocusMode = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_FOCUS_MODE' }).catch(() => {});
+    }
+    window.close();
+  };
+
+  const handleGenerateNotes = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      chrome.tabs.sendMessage(tab.id, { type: 'GENERATE_STUDY_NOTES' }).catch(() => {});
+    }
+    window.close();
+  };
+
   return (
     <div className="p-4 space-y-4 max-h-[480px] overflow-y-auto">
       {/* Header */}
@@ -94,6 +110,8 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
         <div className="grid grid-cols-2 gap-2">
           {[
             { icon: '✨', label: 'Explain Text', desc: 'Select text on page', action: handleExplainText },
+            { icon: '🎯', label: 'Focus Mode', desc: 'Distraction-free read', action: handleFocusMode },
+            { icon: '📝', label: 'Make Notes', desc: 'Select text first', action: handleGenerateNotes },
             { icon: '📊', label: 'Daily Report', desc: 'View stats', action: () => onNavigate('report') },
             { icon: '🎭', label: 'Change Mode', desc: user.preferredMode, action: () => onNavigate('settings') },
             { icon: '📚', label: 'Study Notes', desc: 'View saved', action: () => onNavigate('notes') },

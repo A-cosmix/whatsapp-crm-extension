@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/types';
 import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
 import { ModeCard } from '@/components/ModeCard';
-import { logOut, updateUserProfile } from '@/services/auth/firebase-auth';
+import { logOut, updateUserProfile, deleteUserAccount } from '@/services/auth/firebase-auth';
 import { clearAllData, clearLocalProfile } from '@/services/storage/indexed-db';
 import { useSettings } from '@/hooks/use-settings';
 
@@ -51,6 +51,17 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
   const handleClearData = async () => {
     await clearAllData();
     alert('All local data cleared!');
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      await deleteUserAccount(user.uid);
+      await clearAllData();
+      await clearLocalProfile();
+      onLogout();
+    } catch {
+      alert('Account delete nahi hua. Dobara login karke try karo ya support contact karo.');
+    }
   };
 
   const handleExport = async () => {
@@ -178,8 +189,8 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
         {!confirmDelete ? (
           <button onClick={() => setConfirmDelete(true)} className="w-full py-2 text-sm text-red-500 hover:underline">Delete Account</button>
         ) : (
-          <button onClick={handleLogout} className="w-full py-2 text-sm text-red-600 font-semibold bg-red-50 rounded-xl">
-            Confirm Delete (contact support)
+          <button onClick={handleDeleteAccount} className="w-full py-2 text-sm text-red-600 font-semibold bg-red-50 rounded-xl">
+            Confirm Delete Account
           </button>
         )}
       </div>

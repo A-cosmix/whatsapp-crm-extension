@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { UserProfile } from '@/types';
 import { PAID_PLAN_PRICE_INR } from '@/types';
 import { activateSubscription } from '@/services/auth/firebase-auth';
+import { scheduleRenewalReminder } from '@/services/payments/razorpay';
 
 interface SubscriptionPageProps {
   user: UserProfile;
@@ -12,10 +13,10 @@ interface SubscriptionPageProps {
 const FEATURES = [
   '✅ Unlimited explanations',
   '✅ All 12 explanation modes',
-  '✅ PDF simplifier & export',
+  '✅ PDF simplifier & Markdown export',
   '✅ YouTube video summarizer',
   '✅ Study notes generator',
-  '✅ Export to PDF & Markdown',
+  '✅ Focus reading mode',
   '✅ No watermarks',
   '✅ CosmiQ AI powered explanations',
 ];
@@ -46,6 +47,7 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
     await chrome.storage.local.set({
       subscription: { status: 'active', expiryDate: expiry, activatedAt: Date.now() },
     });
+    await scheduleRenewalReminder();
     onSuccess();
   };
 

@@ -39,6 +39,7 @@ export function HighlightExplainer() {
   const [wordExplainerEnabled, setWordExplainerEnabled] = useState(true);
   const [focusModeActive, setFocusModeActive] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const [showNotesToast, setShowNotesToast] = useState(false);
   const [showRefreshBanner, setShowRefreshBanner] = useState(false);
   const selectionTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -118,6 +119,28 @@ export function HighlightExplainer() {
           void openExplainPopup(text);
         }
       }
+      if (message.type === 'GENERATE_STUDY_NOTES') {
+        const text = window.getSelection()?.toString().trim();
+        if (!text || !isValidExplainSelection(text)) {
+          setShowHint(true);
+          setTimeout(() => setShowHint(false), 4000);
+          return;
+        }
+        void chrome.runtime.sendMessage({
+          type: 'GENERATE_NOTES',
+          payload: {
+            content: text,
+            type: 'exam-notes',
+            url: window.location.href,
+            title: document.title.slice(0, 80),
+          },
+        }).then((res: { success?: boolean }) => {
+          if (res?.success) {
+            setShowNotesToast(true);
+            setTimeout(() => setShowNotesToast(false), 4000);
+          }
+        });
+      }
       if (message.type === 'EXTENSION_UPDATED') {
         setShowRefreshBanner(true);
       }
@@ -140,6 +163,17 @@ export function HighlightExplainer() {
 
   return (
     <>
+      {showNotesToast && (
+        <div
+          style={{
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 2147483647, background: '#25D366', color: 'white', padding: '12px 24px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 600, fontFamily: 'system-ui,sans-serif',
+          }}
+        >
+          ✅ Study notes saved! Extension → Study Notes mein dekho
+        </div>
+      )}
       {showRefreshBanner && (
         <RefreshBanner onRefresh={() => window.location.reload()} />
       )}

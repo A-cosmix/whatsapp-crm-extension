@@ -24,7 +24,7 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import type { UserProfile, SubscriptionStatus } from '@/types';
-import { FREE_TRIAL_DAYS, FREE_DAILY_LIMIT } from '@/types';
+import { FREE_TRIAL_DAYS, FREE_DAILY_LIMIT, FREE_EXPIRED_DAILY_LIMIT } from '@/types';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'YOUR_FIREBASE_API_KEY',
@@ -170,7 +170,7 @@ export function getSubscriptionStatus(profile: UserProfile): SubscriptionStatus 
   return 'expired';
 }
 
-export function canUseFeature(profile: UserProfile | null, _isPremiumMode = false): { allowed: boolean; reason?: string } {
+export function canUseFeature(profile: UserProfile | null, isPremiumMode = false): { allowed: boolean; reason?: string } {
   if (!profile) {
     return { allowed: false, reason: 'Please sign in to use Explain Like WhatsApp' };
   }
@@ -178,17 +178,23 @@ export function canUseFeature(profile: UserProfile | null, _isPremiumMode = fals
   const status = getSubscriptionStatus(profile);
   if (status === 'active') return { allowed: true };
 
-  if (status === 'expired') {
-    return { allowed: false, reason: 'Your trial has expired. Upgrade to continue!' };
-  }
-
   const today = new Date().toISOString().split('T')[0];
   const count = profile.lastExplanationDate === today ? profile.dailyExplanationCount : 0;
-  if (count >= FREE_DAILY_LIMIT) {
-    return { allowed: false, reason: `Daily limit reached (${FREE_DAILY_LIMIT}/day). Upgrade for unlimited!` };
+
+  if (status === 'trial') {
+    if (count >= FREE_DAILY_LIMIT) {
+      return { allowed: false, reason: `Daily limit reached (${FREE_DAILY_LIMIT}/day). Upgrade for unlimited!` };
+    }
+    return { allowed: true };
   }
 
-  // Trial users get full access to all modes (including GenZ, Exam Notes, etc.)
+  // After trial: free basic modes only, limited daily use
+  if (isPremiumMode) {
+    return { allowed: false, reason: 'Pro mode requires subscription. Upgrade for ₹150/year!' };
+  }
+  if (count >= FREE_EXPIRED_DAILY_LIMIT) {
+    return { allowed: false, reason: `Daily free limit reached (${FREE_EXPIRED_DAILY_LIMIT}/day). Upgrade for unlimited!` };
+  }
   return { allowed: true };
 }
 

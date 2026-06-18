@@ -182,7 +182,7 @@ function OptionsApp() {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          Explain Like WhatsApp v1.0.0 • Made with 💚 in India
+          Explain Like WhatsApp v1.0.5 • Made with 💚 in India
         </p>
       </div>
     </div>

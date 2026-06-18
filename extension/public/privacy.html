@@ -17,8 +17,8 @@
   <h2>What We Collect</h2>
   <ul>
     <li><strong>Account data:</strong> Email address and display name when you sign up</li>
-    <li><strong>Usage data:</strong> Explanation history, preferred modes, streak data</li>
-    <li><strong>Selected text:</strong> Text you highlight is sent to Claude API for explanation</li>
+    <li><strong>Usage data:</strong> Explanation history, preferred modes, streak data, achievements</li>
+    <li><strong>Selected text:</strong> Text you highlight is sent to our AI provider for explanation</li>
     <li><strong>Analytics:</strong> Anonymous usage metrics (modes used, explanation counts)</li>
   </ul>
 
@@ -30,17 +30,18 @@
   </ul>
 
   <h2>Data Storage</h2>
-  <p>Your API key is stored locally in Chrome storage on your device. User profiles are stored in Firebase Firestore. Cached explanations are stored in IndexedDB and auto-deleted after 30 days.</p>
+  <p>API keys (if you use Claude) are stored locally in Chrome storage on your device. User profiles are stored in Firebase Firestore. Cached explanations are stored in IndexedDB and auto-deleted after 30 days.</p>
 
   <h2>Third-Party Services</h2>
   <ul>
-    <li><strong>Claude API (Anthropic):</strong> Selected text is sent for AI processing</li>
-    <li><strong>Firebase:</strong> Authentication and user data storage</li>
-    <li><strong>Razorpay:</strong> Payment processing for subscriptions</li>
+    <li><strong>CosmiQ AI (Hugging Face):</strong> Default AI — selected text is sent for explanation</li>
+    <li><strong>Claude API (Anthropic):</strong> Optional paid AI — only if you add your own API key</li>
+    <li><strong>Firebase (Google):</strong> Authentication and user data storage</li>
+    <li><strong>Razorpay:</strong> Payment processing for Pro subscriptions</li>
   </ul>
 
   <h2>Your Rights</h2>
-  <p>You can export or delete your data anytime from Settings. Contact us to request full account deletion.</p>
+  <p>You can export or delete your data anytime from Settings. You can delete your account from Settings → Delete Account.</p>
 
   <h2>Contact</h2>
   <p>Email: privacy@explainlikewhatsapp.com</p>

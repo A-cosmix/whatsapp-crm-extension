@@ -147,6 +147,7 @@ export const ACHIEVEMENTS: Achievement[] = [
 
 export const FREE_TRIAL_DAYS = 5;
 export const FREE_DAILY_LIMIT = 30;
+export const FREE_EXPIRED_DAILY_LIMIT = 5;
 export const PAID_PLAN_PRICE_INR = 150;
 export const CACHE_TTL_DAYS = 30;
 

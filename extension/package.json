@@ -1,13 +1,15 @@
 {
   "name": "explain-like-whatsapp",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "AI Chrome Extension that explains difficult content in simple, human-friendly language",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-icons.mjs",
+    "package": "npm run build && cd dist && zip -r ../explain-like-whatsapp.zip ."
   },
   "dependencies": {
     "@gradio/client": "^2.3.0",
@@ -27,6 +29,7 @@
     "@vitejs/plugin-react": "^4.5.2",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.4",
+    "sharp": "^0.35.1",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
