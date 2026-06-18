@@ -34,8 +34,19 @@ const STEPS = [
 
 export function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(0);
+  const [finishing, setFinishing] = useState(false);
   const current = STEPS[step];
   const isLast = step === STEPS.length - 1;
+
+  const handleFinish = async () => {
+    if (finishing) return;
+    setFinishing(true);
+    try {
+      await onComplete();
+    } finally {
+      setFinishing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-[500px]">
@@ -58,14 +69,15 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         </div>
 
         <button
-          onClick={() => isLast ? onComplete() : setStep(step + 1)}
+          onClick={() => isLast ? handleFinish() : setStep(step + 1)}
           className="btn-primary"
+          disabled={finishing}
         >
-          {isLast ? "Let's Go! 🚀" : 'Next'}
+          {finishing ? 'Loading...' : isLast ? "Let's Go! 🚀" : 'Next'}
         </button>
 
         {!isLast && (
-          <button onClick={onComplete} className="w-full text-sm text-gray-400 hover:text-gray-600">
+          <button onClick={handleFinish} className="w-full text-sm text-gray-400 hover:text-gray-600">
             Skip
           </button>
         )}

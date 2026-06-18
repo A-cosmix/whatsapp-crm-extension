@@ -11,8 +11,8 @@ import { SubscriptionPage } from '@/payments/SubscriptionPage';
 import { TrialExpired } from '@/payments/TrialExpired';
 import { DailyReport } from '@/dashboard/DailyReport';
 import { NotesPage } from '@/dashboard/NotesPage';
-import { getSubscriptionStatus } from '@/services/auth/firebase-auth';
-import { updateUserProfile } from '@/services/auth/firebase-auth';
+import { getSubscriptionStatus, updateUserProfile } from '@/services/auth/firebase-auth';
+import { saveLocalProfile } from '@/services/storage/indexed-db';
 
 type Page = 'landing' | 'login' | 'signup' | 'forgot' | 'onboarding' | 'dashboard' | 'settings' | 'subscription' | 'report' | 'notes';
 
@@ -49,11 +49,11 @@ function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
 }
 
 export function App() {
-  const { user, loading, refresh } = useAuth();
+  const { user, loading, refresh, setUser } = useAuth();
   const [page, setPage] = useState<Page>('landing');
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && user && page !== 'dashboard' && page !== 'settings' && page !== 'subscription' && page !== 'report' && page !== 'notes') {
       if (!user.onboardingComplete) {
         setPage('onboarding');
       } else {
@@ -64,11 +64,20 @@ export function App() {
   }, [user, loading]);
 
   const handleOnboardingComplete = async () => {
-    if (user) {
-      await updateUserProfile(user.uid, { onboardingComplete: true });
-      await refresh();
-    }
+    // Go to dashboard immediately — don't wait for Firestore
     setPage('dashboard');
+
+    if (user) {
+      const updated = { ...user, onboardingComplete: true };
+      await saveLocalProfile(updated as unknown as Record<string, unknown>);
+
+      try {
+        await updateUserProfile(user.uid, { onboardingComplete: true });
+        await refresh();
+      } catch {
+        // Firestore may be slow — local state already updated
+      }
+    }
   };
 
   if (loading) return <LoadingSpinner text="Loading..." />;
