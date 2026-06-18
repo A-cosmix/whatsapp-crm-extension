@@ -55,6 +55,9 @@
     "https://api.anthropic.com/*",
     "https://*.firebaseapp.com/*",
     "https://*.googleapis.com/*",
+    "https://firestore.googleapis.com/*",
+    "https://identitytoolkit.googleapis.com/*",
+    "https://securetoken.googleapis.com/*",
     "https://api.razorpay.com/*",
     "https://checkout.razorpay.com/*",
     "<all_urls>"

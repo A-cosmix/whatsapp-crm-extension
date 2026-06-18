@@ -15,10 +15,14 @@ export function useAuth() {
 
     const unsubscribe = onAuthChange(async (firebaseUser) => {
       if (firebaseUser) {
-        const profile = await getUserProfile(firebaseUser.uid);
-        if (profile) {
-          setUser(profile);
-          await saveLocalProfile(profile as unknown as Record<string, unknown>);
+        try {
+          const profile = await getUserProfile(firebaseUser.uid);
+          if (profile) {
+            setUser(profile);
+            await saveLocalProfile(profile as unknown as Record<string, unknown>);
+          }
+        } catch {
+          // Firestore may be unavailable — use cached local profile
         }
       } else {
         setUser(null);

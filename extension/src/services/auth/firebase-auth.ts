@@ -12,7 +12,7 @@ import {
   type User,
 } from 'firebase/auth';
 import {
-  getFirestore,
+  initializeFirestore,
   doc,
   getDoc,
   setDoc,
@@ -44,7 +44,10 @@ function getFirebase() {
   if (!app) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
-    db = getFirestore(app);
+    // Chrome extensions need long polling — WebChannel fails in MV3 popups
+    db = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
   }
   return { app, auth, db };
 }
