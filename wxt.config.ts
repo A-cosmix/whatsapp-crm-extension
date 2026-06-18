@@ -15,12 +15,23 @@ export default defineConfig({
     },
   }),
   manifest: {
-    name: 'WhatsApp CRM',
-    description: 'CRM extension for WhatsApp Web — leads, reminders, AI auto-reply',
-    permissions: ['storage', 'alarms', 'notifications', 'sidePanel', 'tabs'],
-    host_permissions: ['https://web.whatsapp.com/*', 'http://localhost:11434/*'],
+    name: 'HireMate AI',
+    short_name: 'HireMate',
+    description: 'Land Jobs Faster. Apply Smarter. — AI resume optimizer, ATS analyzer, job matcher & career copilot.',
+    version: '1.0.0',
+    permissions: ['storage', 'alarms', 'notifications', 'tabs', 'activeTab', 'scripting'],
+    host_permissions: [
+      'https://www.linkedin.com/*',
+      'https://www.indeed.com/*',
+      'https://www.naukri.com/*',
+      'https://www.glassdoor.com/*',
+      'https://api.openai.com/*',
+      'https://api.stripe.com/*',
+      'https://api.razorpay.com/*',
+    ],
     action: {
-      default_title: 'WhatsApp CRM',
+      default_title: 'HireMate AI',
+      default_popup: 'popup.html',
       default_icon: {
         16: '/icon/16.png',
         48: '/icon/48.png',
@@ -33,8 +44,11 @@ export default defineConfig({
       128: '/icon/128.png',
     },
     options_ui: {
-      page: 'privacy.html',
+      page: 'options.html',
       open_in_tab: true,
+    },
+    content_security_policy: {
+      extension_pages: "script-src 'self'; object-src 'self'",
     },
   },
 });

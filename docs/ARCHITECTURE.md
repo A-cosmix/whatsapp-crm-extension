@@ -1,159 +1,142 @@
-# WhatsApp CRM Extension — Clean Architecture
+# HireMate AI — Architecture
 
-## Layer Diagram
+## Overview
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Presentation Layer                                          │
-│  src/ui/          — React components (side panel, popup)     │
-│  src/content/     — Content script UI injection              │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ uses
-┌──────────────────────────▼───────────────────────────────────┐
-│  Application Layer (Use Cases)                                 │
-│  src/application/use-cases/                                    │
-│  — CreateLeadUseCase, SendAutoReplyUseCase, etc.               │
-│  — Orchestrates domain + infrastructure; NO framework code   │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ depends on
-┌──────────────────────────▼───────────────────────────────────┐
-│  Domain Layer (Core Business Logic)                            │
-│  src/domain/                                                   │
-│  ├── entities/       — Lead, Campaign, Reminder              │
-│  ├── value-objects/  — PhoneNumber, LeadStage, MessageText     │
-│  ├── repositories/   — ILeadRepository (interfaces only)       │
-│  ├── services/       — ILLMProvider, IWhatsAppAdapter          │
-│  └── agents/         — IReplyTriageAgent, ISupervisorAgent     │
-│  ⚠ NO imports from chrome.*, React, Dexie, or fetch          │
-└──────────────────────────┬───────────────────────────────────┘
-                           │ implemented by
-┌──────────────────────────▼───────────────────────────────────┐
-│  Infrastructure Layer                                          │
-│  src/infrastructure/                                           │
-│  ├── storage/        — DexieLeadRepository                     │
-│  ├── whatsapp/       — DomWhatsAppAdapter, StoreWhatsAppAdapter│
-│  ├── llm/            — OllamaProvider, WebLLMProvider          │
-│  ├── messaging/      — ChromeMessageBus                        │
-│  └── agents/         — ReplyTriageAgentImpl                    │
-└──────────────────────────┬───────────────────────────────────┘
-                           │
-┌──────────────────────────▼───────────────────────────────────┐
-│  Extension Runtime (MV3 Contexts)                              │
-│  src/entrypoints/                                              │
-│  ├── background.ts   — Service worker bootstrap                │
-│  ├── content.ts      — Content script bootstrap                │
-│  └── sidepanel/      — Side panel entry                        │
-└──────────────────────────────────────────────────────────────┘
-```
-
-## Dependency Rule
-
-**Dependencies point inward only.** Domain knows nothing about Chrome APIs, React, or IndexedDB.
+HireMate AI follows **Clean Architecture** with strict layer separation. Inner layers never import from outer layers.
 
 ```
-Presentation → Application → Domain ← Infrastructure
+┌─────────────────────────────────────────────────┐
+│  Entrypoints (background, popup, options, content) │
+├─────────────────────────────────────────────────┤
+│  UI (React components, pages, Zustand stores)   │
+├─────────────────────────────────────────────────┤
+│  Infrastructure (chrome APIs, LLM, payments)    │
+├─────────────────────────────────────────────────┤
+│  Application (use cases, DTOs)                  │
+├─────────────────────────────────────────────────┤
+│  Domain (entities, interfaces, value objects)   │
+└─────────────────────────────────────────────────┘
 ```
 
-## Directory Structure
+## Layer Responsibilities
 
-```
-whatsapp-crm-extension/
-├── .cursor/
-│   └── rules/                    # Cursor AI rules (see each .mdc file)
-├── docs/
-│   ├── RESEARCH.md
-│   ├── FEATURE_REQUIREMENTS.md
-│   ├── ARCHITECTURE.md           # This file
-│   └── PROMPT_TEMPLATE.md
-├── src/
-│   ├── domain/
-│   │   ├── entities/
-│   │   ├── value-objects/
-│   │   ├── repositories/       # Interfaces only
-│   │   ├── services/             # Interfaces only
-│   │   └── agents/               # Interfaces only
-│   ├── application/
-│   │   ├── use-cases/
-│   │   └── dto/
-│   ├── infrastructure/
-│   │   ├── storage/
-│   │   ├── whatsapp/
-│   │   ├── llm/
-│   │   ├── messaging/
-│   │   └── agents/
-│   ├── ui/
-│   │   ├── components/
-│   │   ├── hooks/
-│   │   └── pages/
-│   ├── content/
-│   │   ├── observer.ts
-│   │   └── injector.ts
-│   └── entrypoints/
-│       ├── background.ts
-│       ├── content.ts
-│       └── sidepanel/
-├── wxt.config.ts
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+### Domain (`src/domain/`)
 
-## SOLID Mapping
+Pure TypeScript. No imports from `chrome.*`, React, fetch, or DOM.
 
-| Principle | How We Apply It |
-|---|---|
-| **S** — Single Responsibility | Each use case = one action; each agent = one decision surface |
-| **O** — Open/Closed | New LLM provider = new class implementing `ILLMProvider`; no changes to use cases |
-| **L** — Liskov Substitution | `DomWhatsAppAdapter` and `StoreWhatsAppAdapter` interchangeable via `IWhatsAppAdapter` |
-| **I** — Interface Segregation | Separate `IMessageReader`, `IMessageSender`, `IContactReader` instead of one fat interface |
-| **D** — Dependency Inversion | Use cases depend on `ILeadRepository`, not `DexieLeadRepository` |
+- **Entities**: `Resume`, `JobMatch`, `CoverLetter`, `Subscription`, etc.
+- **Repository interfaces**: `IResumeRepository`, `ILLMProvider`, `IPaymentService`
+- **Value objects**: `scoreToGrade()`, `extractKeywords()`, `FREE_LIMITS`
+- **Errors**: `UsageLimitExceededError`, `PremiumRequiredError`
 
-## Message Bus Pattern (Extension Contexts)
+### Application (`src/application/`)
+
+Orchestrates domain logic via use cases. Depends only on domain interfaces.
+
+Each use case = one user action:
+- `AnalyzeResumeUseCase` — upload + ATS analysis + usage tracking
+- `MatchJobUseCase` — premium-gated job matching
+- `GenerateCoverLetterUseCase` — style-based letter generation
+- `JobTrackerUseCase` — CRUD for kanban items
+
+DTOs use Zod schemas for input validation at the application boundary.
+
+### Infrastructure (`src/infrastructure/`)
+
+Implements domain interfaces with concrete adapters:
+
+| Interface | Implementation |
+|-----------|---------------|
+| `IResumeRepository` | `ChromeResumeRepository` (chrome.storage.local) |
+| `ILLMProvider` | `MockLLMProvider` / `OpenAILLMProvider` |
+| `IAuthService` | `LocalAuthService` |
+| `IPaymentService` | `PaymentService` (Stripe + Razorpay) |
+| `IJobBoardAdapter` | LinkedIn, Indeed, Naukri, Glassdoor adapters |
+
+**Composition root**: `src/infrastructure/di/container.ts`
+- Wires all dependencies
+- Exposes `handleMessage()` for chrome.runtime message bus
+- UI communicates exclusively via message types
+
+### UI (`src/ui/`)
+
+React presentation layer. No business logic in components.
+
+- **Pages**: One page per feature (dashboard, resume analyzer, etc.)
+- **Components**: Reusable glass cards, score rings, loading sequences
+- **Stores**: Zustand for auth, subscription, settings state
+- **TanStack Query**: Server-state for async operations
+
+### Entrypoints (`src/entrypoints/`)
+
+MV3 bootstrap and dependency wiring:
+
+| Entrypoint | Purpose |
+|------------|---------|
+| `background.ts` | Message handler, alarms, notifications |
+| `popup/` | Quick-access toolbar popup (360px) |
+| `options/` | Full dashboard with sidebar navigation |
+| `content.ts` | Job board detection + floating analyze panel |
+
+## Message Bus
+
+UI → Background communication:
 
 ```typescript
-// Domain defines the contract
-interface MessageBus {
-  send<T>(type: string, payload: T): Promise<void>;
-  on<T>(type: string, handler: (payload: T) => void): void;
-}
-
-// Infrastructure implements with chrome.runtime
-class ChromeMessageBus implements MessageBus { ... }
+chrome.runtime.sendMessage({ type: 'ANALYZE_RESUME', payload: { fileName, content } })
 ```
 
-Message types (typed enum):
-- `LEAD_CREATED`, `LEAD_UPDATED`
-- `MESSAGE_RECEIVED`, `AUTO_REPLY_SENT`
-- `CAMPAIGN_PROGRESS`, `REMINDER_FIRED`
-- `AI_DECISION_LOGGED`
+Background routes to `handleMessage()` → use case → repository/LLM.
 
-## Testing Strategy
+## Data Flow Example: Resume Analysis
 
-| Layer | Test Type | Tools |
-|---|---|---|
-| Domain (entities, VOs) | Unit | Vitest |
-| Application (use cases) | Unit with mocks | Vitest + manual mocks |
-| Infrastructure | Integration | Vitest + fake IndexedDB |
-| UI | Component | Vitest + Testing Library |
-| E2E | End-to-end | Playwright (mocked WhatsApp) |
+```
+1. User uploads file in ResumeAnalyzerPage (UI)
+2. TanStack Query mutation calls sendMessage('ANALYZE_RESUME')
+3. Background receives message → AnalyzeResumeUseCase.execute()
+4. Use case checks usage limits (domain rule)
+5. Resume saved via ChromeResumeRepository
+6. MockLLMProvider.analyzeResume() returns scores
+7. Analysis saved, usage incremented
+8. Result returned to UI → ScoreRing + recommendations rendered
+```
 
-## Composition Root
-
-Each entrypoint (background, content, sidepanel) has a `bootstrap.ts` that wires dependencies:
+## Premium Gating
 
 ```typescript
-// src/entrypoints/background/bootstrap.ts
-export function createApp(): BackgroundApp {
-  const storage = new DexieStorage();
-  const leadRepo = new DexieLeadRepository(storage);
-  const llm = new OllamaProvider(config.ollamaUrl);
-  const whatsapp = new DomWhatsAppAdapter();
-  const bus = new ChromeMessageBus();
-
-  return new BackgroundApp({
-    createLead: new CreateLeadUseCase(leadRepo, bus),
-    autoReply: new SendAutoReplyUseCase(leadRepo, llm, whatsapp, bus),
-    // ...
-  });
+// Use cases check premium via injected callback
+if (!(await this.isPremium())) {
+  throw new PremiumRequiredError('Job Match Scoring');
 }
 ```
+
+Subscription state stored in `chrome.storage.local` via `ChromeSubscriptionRepository`.
+
+## Job Board Integration
+
+Content script uses adapter pattern:
+
+```typescript
+const adapter = getAdapterForUrl(window.location.href);
+const job = await adapter.extractJobDescription();
+```
+
+Each adapter implements `IJobBoardAdapter` with site-specific DOM selectors.
+
+## Extending
+
+### Add a new LLM provider
+1. Implement `ILLMProvider` in `src/infrastructure/llm/`
+2. Register in `container.ts` based on settings
+
+### Add a new job board
+1. Create adapter extending `BaseJobBoardAdapter`
+2. Register in `JOB_BOARD_ADAPTERS` array
+3. Add host permission in `wxt.config.ts`
+
+### Add a new feature
+1. Define entity in `domain/entities/`
+2. Add repository interface if needed
+3. Create use case in `application/use-cases/`
+4. Wire in `container.ts` message handler
+5. Build UI page + route

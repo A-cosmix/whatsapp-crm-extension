@@ -1,77 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   * {
-    box-sizing: border-box;
-  }
-
-  html,
-  body,
-  #root {
-    height: 100%;
-    background-color: #0b141a;
-    color: #e9edef;
+    @apply border-hiremate-border;
   }
 
   body {
-    margin: 0;
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    @apply bg-hiremate-bg text-hiremate-text font-sans antialiased;
+    background-image: radial-gradient(ellipse at top, rgba(124, 58, 237, 0.08) 0%, transparent 50%);
   }
 
   ::-webkit-scrollbar {
     width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
-    background: #111b21;
+    @apply bg-transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: #2a3942;
-    border-radius: 3px;
+    @apply bg-hiremate-primary/30 rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: #374955;
-  }
-
-  ::selection {
-    background: rgba(0, 168, 132, 0.35);
-    color: #e9edef;
+    @apply bg-hiremate-primary/50;
   }
 }
 
 @layer components {
-  .crm-input {
-    @apply w-full rounded-lg border border-dark-border bg-dark-input px-3 py-2.5 text-sm text-wa-text
-      placeholder:text-wa-muted transition-colors
-      focus:border-wa-green focus:outline-none focus:ring-1 focus:ring-wa-green/40;
+  .glass-card {
+    @apply bg-hiremate-card/80 backdrop-blur-xl border border-white/10 rounded-2xl shadow-glass;
   }
 
-  .crm-btn-primary {
-    @apply rounded-lg bg-wa-green px-4 py-2.5 text-sm font-medium text-white
-      transition-all hover:bg-wa-greenDark active:scale-[0.98]
-      disabled:cursor-not-allowed disabled:opacity-50;
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:border-hiremate-primary/30 hover:shadow-glow;
   }
 
-  .crm-btn-secondary {
-    @apply rounded-lg border border-dark-border bg-dark-surface px-3 py-2 text-xs text-wa-text
-      transition-colors hover:border-wa-green/40 hover:bg-dark-hover;
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-white
+           bg-gradient-to-r from-hiremate-primary to-hiremate-secondary
+           hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100;
   }
 
-  .crm-btn-danger {
-    @apply rounded-lg border border-wa-danger/40 bg-wa-danger/10 px-3 py-2 text-xs text-wa-danger
-      transition-colors hover:bg-wa-danger/20;
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-medium
+           bg-white/5 border border-white/10 text-hiremate-text
+           hover:bg-white/10 hover:border-hiremate-primary/30 transition-all duration-300;
   }
 
-  .crm-card {
-    @apply rounded-xl border border-dark-border bg-dark-surface p-4 shadow-card;
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium
+           text-hiremate-muted hover:text-hiremate-text hover:bg-white/5 transition-all duration-200;
   }
 
-  .crm-badge {
-    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-hiremate-text
+           placeholder:text-hiremate-muted/60 focus:outline-none focus:border-hiremate-primary/50
+           focus:ring-2 focus:ring-hiremate-primary/20 transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-hiremate-muted mb-2;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-primary {
+    @apply badge bg-hiremate-primary/20 text-hiremate-secondary;
+  }
+
+  .badge-success {
+    @apply badge bg-hiremate-success/20 text-hiremate-success;
+  }
+
+  .badge-warning {
+    @apply badge bg-hiremate-warning/20 text-hiremate-warning;
+  }
+
+  .badge-danger {
+    @apply badge bg-hiremate-danger/20 text-hiremate-danger;
+  }
+
+  .score-ring {
+    @apply relative flex items-center justify-center w-32 h-32 rounded-full;
+    background: conic-gradient(
+      var(--score-color, #7C3AED) calc(var(--score-percent, 0) * 1%),
+      rgba(255, 255, 255, 0.05) 0
+    );
+  }
+
+  .score-ring::before {
+    content: '';
+    @apply absolute inset-2 rounded-full bg-hiremate-card;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-hiremate-primary via-hiremate-secondary to-purple-300 bg-clip-text text-transparent;
+  }
+
+  .shimmer {
+    background: linear-gradient(90deg, transparent, rgba(124, 58, 237, 0.1), transparent);
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-hiremate-muted font-medium
+           transition-all duration-200 hover:text-hiremate-text hover:bg-white/5;
+  }
+
+  .nav-link-active {
+    @apply nav-link text-hiremate-text bg-hiremate-primary/10 border border-hiremate-primary/20;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }

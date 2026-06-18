@@ -1,0 +1,15 @@
+export { DashboardPage } from './dashboard-page';
+export { ResumeAnalyzerPage } from './resume-analyzer-page';
+export { JobMatcherPage } from './job-matcher-page';
+export { ResumeOptimizerPage } from './resume-optimizer-page';
+export { CoverLetterPage } from './cover-letter-page';
+export { ApplicationAssistantPage } from './application-assistant-page';
+export { InterviewPrepPage } from './interview-prep-page';
+export { LinkedInAuditorPage } from './linkedin-auditor-page';
+export { JobTrackerPage } from './job-tracker-page';
+export { SalaryInsightsPage } from './salary-insights-page';
+export { CareerRoadmapPage } from './career-roadmap-page';
+export { PricingPage } from './pricing-page';
+export { SettingsPage } from './settings-page';
+export { OnboardingFlow } from './onboarding-page';
+export { LandingPage } from './landing-page';
