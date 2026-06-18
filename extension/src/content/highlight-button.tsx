@@ -29,7 +29,7 @@ export function HighlightExplainer() {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (text && text.length > 2 && text.length < 5000) {
+      if (text && text.length >= 15 && text.length < 5000) {
         const range = selection?.getRangeAt(0);
         const rect = range?.getBoundingClientRect();
         if (rect) {

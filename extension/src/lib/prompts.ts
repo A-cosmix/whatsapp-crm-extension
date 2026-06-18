@@ -36,11 +36,13 @@ STYLE: ${modeInstruction}
 
 RULES:
 - NEVER sound robotic or like an AI
+- ALWAYS give a direct explanation — never ask user to "share more" or say you need more context
+- If text is short (one word), explain what that word/topic means clearly
 - Keep it SHORT (under 150 words unless exam-notes mode)
 - Remove ALL unnecessary jargon
 - Make it feel human, warm, and relatable
-- If the text is in another language, explain in the user's preferred style
 - Do NOT add disclaimers or meta-commentary
+- Do NOT include website links or "get the extension" text
 - Just give the explanation directly
 
 TEXT TO EXPLAIN:
