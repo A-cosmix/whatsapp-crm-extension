@@ -151,7 +151,7 @@ export function getSubscriptionStatus(profile: UserProfile): SubscriptionStatus 
   return 'expired';
 }
 
-export function canUseFeature(profile: UserProfile | null, isPremiumMode = false): { allowed: boolean; reason?: string } {
+export function canUseFeature(profile: UserProfile | null, _isPremiumMode = false): { allowed: boolean; reason?: string } {
   if (!profile) {
     return { allowed: false, reason: 'Please sign in to use Explain Like WhatsApp' };
   }
@@ -169,10 +169,7 @@ export function canUseFeature(profile: UserProfile | null, isPremiumMode = false
     return { allowed: false, reason: `Daily limit reached (${FREE_DAILY_LIMIT}/day). Upgrade for unlimited!` };
   }
 
-  if (isPremiumMode) {
-    return { allowed: false, reason: 'This mode requires a paid subscription' };
-  }
-
+  // Trial users get full access to all modes (including GenZ, Exam Notes, etc.)
   return { allowed: true };
 }
 

@@ -4,6 +4,7 @@ import { WordExplainer } from './word-explainer';
 import { FocusMode } from './focus-mode';
 import type { ExplanationMode } from '@/types';
 import { getSettings } from '@/services/storage/indexed-db';
+import { isValidExplainSelection } from '@/utils/helpers';
 
 export function HighlightExplainer() {
   const [selectedText, setSelectedText] = useState('');
@@ -29,7 +30,7 @@ export function HighlightExplainer() {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (text && text.length >= 15 && text.length < 5000) {
+      if (text && isValidExplainSelection(text)) {
         const range = selection?.getRangeAt(0);
         const rect = range?.getBoundingClientRect();
         if (rect) {
@@ -58,13 +59,16 @@ export function HighlightExplainer() {
   useEffect(() => {
     const listener = (message: { type: string; payload?: { text?: string } }) => {
       if (message.type === 'TRIGGER_EXPLAIN' && message.payload?.text) {
-        setSelectedText(message.payload.text);
-        setShowPopup(true);
-        setShowButton(false);
+        const text = message.payload.text.trim();
+        if (isValidExplainSelection(text)) {
+          setSelectedText(text);
+          setShowPopup(true);
+          setShowButton(false);
+        }
       }
       if (message.type === 'TRIGGER_EXPLAIN_SHORTCUT') {
         const text = window.getSelection()?.toString().trim();
-        if (text) {
+        if (text && isValidExplainSelection(text)) {
           setSelectedText(text);
           setShowPopup(true);
           setShowButton(false);

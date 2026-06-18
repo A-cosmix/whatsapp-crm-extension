@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
+import { sendMessage, EXTENSION_RELOAD_MESSAGE } from '@/utils/helpers';
 
 interface ExplainPopupProps {
   text: string;
@@ -25,23 +26,25 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
     setMode(selectedMode);
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'EXPLAIN_TEXT',
-        payload: {
-          text,
-          mode: selectedMode,
-          url: window.location.href,
-          pageTitle: document.title,
-        },
+      const response = await sendMessage<{
+        success: boolean;
+        explanation?: string;
+        error?: string;
+      }>('EXPLAIN_TEXT', {
+        text,
+        mode: selectedMode,
+        url: window.location.href,
+        pageTitle: document.title,
       });
 
-      if (response.success) {
-        setExplanation(response.explanation);
+      if (response?.success) {
+        setExplanation(response.explanation || '');
       } else {
-        setError(response.error || 'Failed to generate explanation');
+        setError(response?.error || 'Failed to generate explanation');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg === 'EXTENSION_CONTEXT_INVALID' ? EXTENSION_RELOAD_MESSAGE : msg);
     } finally {
       setLoading(false);
     }
@@ -180,12 +183,21 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
           ) : error ? (
             <div style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
               {error}
-              <button
-                onClick={() => generateExplanation(mode)}
-                style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}
-              >
-                Try Again
-              </button>
+              {error.includes('refresh') || error === EXTENSION_RELOAD_MESSAGE ? (
+                <button
+                  onClick={() => window.location.reload()}
+                  style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}
+                >
+                  🔄 Page Refresh Karo
+                </button>
+              ) : (
+                <button
+                  onClick={() => generateExplanation(mode)}
+                  style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}
+                >
+                  Try Again
+                </button>
+              )}
             </div>
           ) : (
             <div style={{ fontSize: '15px', lineHeight: 1.7, color: '#1f2937', whiteSpace: 'pre-wrap' }}>
