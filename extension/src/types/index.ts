@@ -177,6 +177,7 @@ export interface ExplainTextPayload {
   mode: ExplanationMode;
   url: string;
   pageTitle: string;
+  surroundingText?: string;
 }
 
 export interface ExplainWordPayload {

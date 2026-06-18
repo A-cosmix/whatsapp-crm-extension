@@ -3,11 +3,12 @@ import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
 
 interface ExplainPopupProps {
   text: string;
+  surroundingText?: string;
   defaultMode: ExplanationMode;
   onClose: () => void;
 }
 
-export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) {
+export function ExplainPopup({ text, surroundingText, defaultMode, onClose }: ExplainPopupProps) {
   const [mode, setMode] = useState<ExplanationMode>(defaultMode);
   const [explanation, setExplanation] = useState('');
   const [loading, setLoading] = useState(true);
@@ -32,6 +33,7 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
           mode: selectedMode,
           url: window.location.href,
           pageTitle: document.title,
+          surroundingText,
         },
       });
 
@@ -116,6 +118,11 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
         {/* Original Text */}
         <div style={{ padding: '12px 20px', background: '#f0fdf4', borderBottom: '1px solid #dcfce7' }}>
           <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600, marginBottom: '4px' }}>ORIGINAL</div>
+          {text.length < 50 && (
+            <div style={{ fontSize: '12px', color: '#b45309', background: '#fffbeb', padding: '8px 10px', borderRadius: '8px', marginBottom: '8px' }}>
+              💡 Tip: Zyada text select karo (poora paragraph) — explanation aur better hoga!
+            </div>
+          )}
           <div style={{ fontSize: '13px', color: '#374151', lineHeight: 1.5, maxHeight: '60px', overflow: 'hidden' }}>
             {text.slice(0, 200)}{text.length > 200 ? '...' : ''}
           </div>

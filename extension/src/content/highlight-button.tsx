@@ -5,8 +5,30 @@ import { FocusMode } from './focus-mode';
 import type { ExplanationMode } from '@/types';
 import { getSettings } from '@/services/storage/indexed-db';
 
+const MIN_SELECTION_LENGTH = 15;
+
+function getSurroundingText(): string {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return '';
+
+  let node: Node | null = selection.anchorNode;
+  while (node && node.nodeType !== Node.ELEMENT_NODE) {
+    node = node.parentNode;
+  }
+
+  if (node instanceof HTMLElement) {
+    const block = node.closest('p, li, td, th, h1, h2, h3, h4, article, section, div');
+    if (block?.textContent) {
+      return block.textContent.replace(/\s+/g, ' ').trim().slice(0, 600);
+    }
+  }
+
+  return document.title;
+}
+
 export function HighlightExplainer() {
   const [selectedText, setSelectedText] = useState('');
+  const [surroundingText, setSurroundingText] = useState('');
   const [buttonPos, setButtonPos] = useState({ x: 0, y: 0 });
   const [showButton, setShowButton] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
@@ -29,11 +51,12 @@ export function HighlightExplainer() {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
 
-      if (text && text.length >= 15 && text.length < 5000) {
+      if (text && text.length >= MIN_SELECTION_LENGTH && text.length < 5000) {
         const range = selection?.getRangeAt(0);
         const rect = range?.getBoundingClientRect();
         if (rect) {
           setSelectedText(text);
+          setSurroundingText(getSurroundingText());
           setButtonPos({
             x: rect.left + rect.width / 2,
             y: rect.top - 50 + window.scrollY,
@@ -64,8 +87,9 @@ export function HighlightExplainer() {
       }
       if (message.type === 'TRIGGER_EXPLAIN_SHORTCUT') {
         const text = window.getSelection()?.toString().trim();
-        if (text) {
+        if (text && text.length >= MIN_SELECTION_LENGTH) {
           setSelectedText(text);
+          setSurroundingText(getSurroundingText());
           setShowPopup(true);
           setShowButton(false);
         }
@@ -135,6 +159,7 @@ export function HighlightExplainer() {
       {showPopup && (
         <ExplainPopup
           text={selectedText}
+          surroundingText={surroundingText}
           defaultMode={defaultMode}
           onClose={() => setShowPopup(false)}
         />

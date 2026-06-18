@@ -26,24 +26,44 @@ export const MODE_PROMPTS: Record<ExplanationMode, string> = {
   meme: `Explain this in meme style - funny, relatable, use internet humor. Can reference popular memes but keep the explanation accurate.`,
 };
 
-export function buildExplainPrompt(text: string, mode: ExplanationMode): string {
+export interface ExplainPromptContext {
+  pageTitle?: string;
+  pageUrl?: string;
+  surroundingText?: string;
+}
+
+export function buildExplainPrompt(
+  text: string,
+  mode: ExplanationMode,
+  context: ExplainPromptContext = {},
+): string {
   const modeInstruction = MODE_PROMPTS[mode];
+  const isShortSelection = text.trim().length < 50;
+  const contextBlock = isShortSelection
+    ? `
+PAGE CONTEXT (use this to explain the short selection — do NOT ask user for more text):
+- Page: ${context.pageTitle || 'Unknown page'}
+- URL: ${context.pageUrl || 'unknown'}
+${context.surroundingText ? `- Nearby text on page:\n"""${context.surroundingText.slice(0, 600)}"""` : ''}
+`
+    : '';
+
   return `You are "Explain Like WhatsApp" - an AI that makes the internet simple for everyone.
 
 TASK: Simplify and explain the following text.
 
 STYLE: ${modeInstruction}
-
+${contextBlock}
 RULES:
 - NEVER sound robotic or like an AI
-- ALWAYS give a direct explanation — never ask user to "share more" or say you need more context
-- If text is short (one word), explain what that word/topic means clearly
+- ALWAYS give a direct explanation — NEVER ask user to "share more", "share karo", or say you need more context
+- If text is short (one word or phrase), explain what it means on THIS page using the page context above
 - Keep it SHORT (under 150 words unless exam-notes mode)
 - Remove ALL unnecessary jargon
 - Make it feel human, warm, and relatable
 - Do NOT add disclaimers or meta-commentary
 - Do NOT include website links or "get the extension" text
-- Just give the explanation directly
+- Output ONLY the explanation — no preamble like "Hey!" asking for more info
 
 TEXT TO EXPLAIN:
 """

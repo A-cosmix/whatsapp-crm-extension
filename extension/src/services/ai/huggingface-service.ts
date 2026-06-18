@@ -44,7 +44,8 @@ export async function callCosmiQ(message: string): Promise<string> {
 }
 
 export async function explainWithCosmiQ(prompt: string): Promise<string> {
-  return callCosmiQ(prompt);
+  const wrapped = `[SYSTEM: You are Explain Like WhatsApp. Reply with ONLY the explanation. Never ask the user to share more text. Never say "share karo" or "I need more context".]\n\n${prompt}`;
+  return callCosmiQ(wrapped);
 }
 
 export async function resetCosmiQClient(): Promise<void> {
