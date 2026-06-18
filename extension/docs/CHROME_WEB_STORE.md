@@ -67,7 +67,7 @@ Remove ads and distractions. Dark mode, sepia, reading fonts, focus timer.
 Track daily progress. Earn achievements. Get daily learning reports.
 
 FREE: 5-day trial, 30 explanations/day
-PRO: ₹150/year — unlimited everything
+PRO: ₹150/month — unlimited everything
 
 Made with 💚 in India
 ```

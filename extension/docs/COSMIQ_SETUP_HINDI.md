@@ -6,7 +6,7 @@
 |---------|-----|------|
 | CosmiQ AI (Hugging Face) | Text explain | **FREE** |
 | Firebase | Login + Database | **FREE** |
-| Razorpay Payment Link | ₹150 payment | **2% per sale** |
+| Razorpay Subscriptions | ₹150/month recurring | **~2% per charge** |
 | Chrome Dev Account | Publish | Already hai ✅ |
 
 ---
@@ -37,33 +37,24 @@ Chrome → `chrome://extensions` → **Reload** 🔄
 
 ---
 
-## PART 3 — Razorpay Payment Link Banao
+## PART 3 — Razorpay Subscription Setup (₹150/month)
 
-### Step 1: Login
-https://dashboard.razorpay.com (papa ka account)
+Ab honor-system payment link nahi hai. Ab **Razorpay Subscriptions + backend**
+hai jo payment verify karke hi Pro deta hai. Poori steps:
+[docs/RAZORPAY_SETUP.md](RAZORPAY_SETUP.md)
 
-### Step 2: Payment Link
-Left menu → **Payment Links** → **+ New Payment Link**
+### Short version
+1. Razorpay Dashboard → **Subscriptions** enable karo, API keys lo.
+2. Monthly ₹150 plan banao: `cd extension/functions && npm run create-plan`.
+3. Params (`RAZORPAY_KEY_ID`, `RAZORPAY_PLAN_ID`) + secrets
+   (`RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`) set karke
+   `firebase deploy --only functions`.
+4. Deployed `razorpayWebhook` URL ko Razorpay → Webhooks mein add karo.
 
-| Field | Value |
-|-------|-------|
-| Title | Explain Like WhatsApp Pro |
-| Amount | ₹150 |
-| Description | 1 Year Unlimited Access |
-
-### Step 3: Copy Link
-Example: `https://rzp.io/l/abc123xyz`
-
-### Step 4: Extension mein add karo
-1. Extension icon → **⚙️ Settings**
-2. **Razorpay Payment Link** box mein paste karo
-3. **Save Settings**
-
-### Step 5: Test Payment
-1. Dashboard → **Upgrade ₹150/yr**
-2. Razorpay page khulega
-3. Test UPI se pay karo
-4. **"Maine Payment Kar Diya"** dabao → Pro activate
+### Test Payment
+1. Extension → **Upgrade ₹150/mo** → **Subscribe**
+2. Razorpay hosted page khulega → test UPI `success@razorpay` se pay karo
+3. Webhook fire hote hi Pro **apne aap** activate (popup dubara kholo)
 
 ---
 
@@ -107,15 +98,15 @@ Example: `https://rzp.io/l/abc123xyz`
 ## Payment Flow
 
 ```
-User → Upgrade ₹150
+User → Upgrade ₹150/month → Subscribe
     ↓
-Razorpay Payment Link (UPI/Card)
+Backend (Cloud Function) Razorpay subscription banata hai
     ↓
-Paisa Razorpay account mein
+Razorpay hosted page (UPI/Card) → user pay karta hai
     ↓
-User → "Maine Payment Kar Diya"
+Razorpay webhook (signed) → Cloud Function verify karta hai
     ↓
-Pro activated ✅
+Firestore users/{uid}.subscriptionStatus = active
+    ↓
+Pro activated ✅ (har month auto-charge)
 ```
-
-Baad mein automatic webhook add kar sakte ho (Cloudflare Worker — free).

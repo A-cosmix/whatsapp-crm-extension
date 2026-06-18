@@ -27,7 +27,6 @@ import {
   saveExplanationHistorySafe,
   getSubscriptionStatus,
 } from '@/services/auth/firebase-auth';
-import { verifyPayment } from '@/services/payments/razorpay';
 import type { DailyLearningReport } from '@/types';
 
 async function recordExplanationUsage(
@@ -257,7 +256,7 @@ async function sendRenewalReminder() {
     type: 'basic',
     iconUrl: 'public/icon/128.png',
     title: '⏰ Subscription Renewal',
-    message: 'Your Explain Like WhatsApp subscription expires in 7 days. Renew for just ₹150/year!',
+    message: 'Your Explain Like WhatsApp subscription renews soon at ₹150/month.',
   });
 }
 
@@ -329,11 +328,6 @@ async function handleMessage(message: ExtensionMessage) {
       const { exportAllData } = await import('@/services/storage/indexed-db');
       const data = await exportAllData();
       return { success: true, data };
-    }
-
-    case 'VERIFY_PAYMENT': {
-      const { orderId, paymentId, signature, userId } = message.payload as Record<string, string>;
-      return verifyPayment(orderId, paymentId, signature, userId);
     }
 
     case 'GET_DAILY_REPORT': {

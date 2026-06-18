@@ -149,6 +149,8 @@ export const FREE_TRIAL_DAYS = 5;
 export const FREE_DAILY_LIMIT = 30;
 export const FREE_EXPIRED_DAILY_LIMIT = 5;
 export const PAID_PLAN_PRICE_INR = 150;
+export const PAID_PLAN_PERIOD: 'month' | 'year' = 'month';
+export const PAID_PLAN_PRICE_LABEL = `₹${PAID_PLAN_PRICE_INR}/${PAID_PLAN_PERIOD}`;
 export const CACHE_TTL_DAYS = 30;
 
 export type MessageType =
@@ -164,8 +166,6 @@ export type MessageType =
   | 'GET_CACHED'
   | 'CLEAR_CACHE'
   | 'EXPORT_DATA'
-  | 'VERIFY_PAYMENT'
-  | 'CREATE_PAYMENT_ORDER'
   | 'GET_DAILY_REPORT'
   | 'SHARE_EXPLANATION';
 

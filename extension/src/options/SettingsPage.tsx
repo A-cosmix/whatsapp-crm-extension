@@ -15,15 +15,13 @@ interface SettingsPageProps {
 export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
   const { settings, update } = useSettings();
   const [apiKey, setApiKey] = useState('');
-  const [paymentLink, setPaymentLink] = useState('');
   const [aiProvider, setAiProvider] = useState<'cosmiq' | 'claude'>('cosmiq');
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    chrome.storage.local.get(['claudeApiKey', 'razorpayPaymentLink', 'aiProvider']).then((r) => {
+    chrome.storage.local.get(['claudeApiKey', 'aiProvider']).then((r) => {
       if (r.claudeApiKey) setApiKey('••••••••' + (r.claudeApiKey as string).slice(-4));
-      if (r.razorpayPaymentLink) setPaymentLink(r.razorpayPaymentLink as string);
       if (r.aiProvider) setAiProvider(r.aiProvider as 'cosmiq' | 'claude');
     });
   }, []);
@@ -31,7 +29,6 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
   const handleSaveSettings = async () => {
     const updates: Record<string, string> = { aiProvider };
     if (apiKey && !apiKey.startsWith('••')) updates.claudeApiKey = apiKey;
-    if (paymentLink) updates.razorpayPaymentLink = paymentLink;
     await chrome.storage.local.set(updates);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -117,19 +114,6 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
           />
         </div>
       )}
-
-      {/* Razorpay Payment Link */}
-      <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase">Razorpay Payment Link</h3>
-        <input
-          type="url"
-          value={paymentLink}
-          onChange={(e) => setPaymentLink(e.target.value)}
-          className="input-field"
-          placeholder="https://rzp.io/l/your-link"
-        />
-        <p className="text-[10px] text-gray-400">Razorpay Dashboard → Payment Links → copy link</p>
-      </div>
 
       <button onClick={handleSaveSettings} className="btn-primary text-sm py-2">
         {saved ? '✅ Saved!' : 'Save Settings'}

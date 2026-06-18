@@ -15,7 +15,7 @@ Highlight any difficult text on any website → Get instant explanations in What
 - **Study Notes Generator** — Exam notes, flashcards, revision sheets with export
 - **Daily Learning Report** — Spotify Wrapped for learning
 - **Streaks & Achievements** — Gamified learning retention
-- **Monetization** — 5-day free trial, ₹150/year Pro plan via Razorpay
+- **Monetization** — 5-day free trial, ₹150/month recurring Pro plan via Razorpay Subscriptions
 
 ## Tech Stack
 
@@ -123,29 +123,23 @@ service cloud.firestore {
 }
 ```
 
-## Razorpay Setup
+## Razorpay Subscription Setup
 
-1. Create account at [razorpay.com](https://razorpay.com)
-2. Get API keys from Dashboard → Settings → API Keys
-3. Add to `.env`:
+The Pro plan is a **₹150/month recurring subscription** powered by Razorpay
+Subscriptions and a Firebase Cloud Functions backend (`functions/`). Pro is
+granted only by the signature-verified webhook after a real payment — never from
+the extension UI.
 
-```
-VITE_RAZORPAY_KEY_ID=rzp_live_your_key_id
-```
+See [docs/RAZORPAY_SETUP.md](docs/RAZORPAY_SETUP.md) for the full guide. In short:
 
-4. For production, deploy a backend for payment verification:
+1. Create a Razorpay account, enable **Subscriptions**, get API keys.
+2. Create the monthly ₹150 plan: `cd functions && npm run create-plan`.
+3. Configure params (`RAZORPAY_KEY_ID`, `RAZORPAY_PLAN_ID`) and secrets
+   (`RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`), then `firebase deploy --only functions`.
+4. Add the deployed `razorpayWebhook` URL as a Razorpay webhook.
 
-```javascript
-// POST /api/payments/verify
-const crypto = require('crypto');
-const expectedSignature = crypto
-  .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-  .update(orderId + '|' + paymentId)
-  .digest('hex');
-const isValid = expectedSignature === signature;
-```
-
-5. Set `VITE_BACKEND_URL` to your deployed backend URL
+The extension itself only needs the standard Firebase config — it calls the
+callable `createSubscription` via the Firebase SDK.
 
 ## Claude API Setup
 
@@ -191,7 +185,7 @@ const isValid = expectedSignature === signature;
 | Plan | Price | Features |
 |------|-------|----------|
 | Free Trial | ₹0 (5 days) | 30 explanations/day, basic modes |
-| Pro Annual | ₹150/year | Unlimited, all modes, PDF/YouTube, exports |
+| Pro Monthly | ₹150/month | Unlimited, all modes, PDF/YouTube, exports |
 
 ## Keyboard Shortcuts
 

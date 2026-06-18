@@ -1,4 +1,4 @@
-import { PAID_PLAN_PRICE_INR } from '@/types';
+import { PAID_PLAN_PRICE_INR, PAID_PLAN_PERIOD } from '@/types';
 
 interface TrialExpiredProps {
   onUpgrade: () => void;
@@ -17,7 +17,7 @@ export function TrialExpired({ onUpgrade, onLogout }: TrialExpiredProps) {
       </div>
 
       <div className="p-4 rounded-2xl bg-brand-50 border border-brand-100 w-full">
-        <div className="text-2xl font-bold text-brand-600">₹{PAID_PLAN_PRICE_INR}/year</div>
+        <div className="text-2xl font-bold text-brand-600">₹{PAID_PLAN_PRICE_INR}/{PAID_PLAN_PERIOD}</div>
         <div className="text-xs text-brand-500">Unlimited explanations + all features</div>
       </div>
 
