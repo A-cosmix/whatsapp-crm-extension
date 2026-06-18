@@ -13,6 +13,7 @@ export function HighlightExplainer() {
   const [defaultMode, setDefaultMode] = useState<ExplanationMode>('whatsapp');
   const [wordExplainerEnabled, setWordExplainerEnabled] = useState(true);
   const [focusModeActive, setFocusModeActive] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const selectionTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
@@ -72,6 +73,10 @@ export function HighlightExplainer() {
       if (message.type === 'TOGGLE_FOCUS_MODE') {
         setFocusModeActive((prev) => !prev);
       }
+      if (message.type === 'SHOW_EXPLAIN_HINT') {
+        setShowHint(true);
+        setTimeout(() => setShowHint(false), 5000);
+      }
     };
 
     chrome.runtime.onMessage.addListener(listener);
@@ -85,6 +90,18 @@ export function HighlightExplainer() {
 
   return (
     <>
+      {showHint && (
+        <div
+          style={{
+            position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 2147483647, background: '#25D366', color: 'white', padding: '12px 24px',
+            borderRadius: '12px', fontSize: '14px', fontWeight: 600, fontFamily: 'system-ui,sans-serif',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          }}
+        >
+          ✅ Ab koi bhi text select karo — 💬 Explain button dikhega!
+        </div>
+      )}
       {showButton && (
         <button
           onClick={handleExplainClick}

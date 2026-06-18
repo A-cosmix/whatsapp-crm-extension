@@ -15,6 +15,14 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
   const today = new Date().toISOString().split('T')[0];
   const dailyUsed = user.lastExplanationDate === today ? user.dailyExplanationCount : 0;
 
+  const handleExplainText = async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) {
+      chrome.tabs.sendMessage(tab.id, { type: 'SHOW_EXPLAIN_HINT' }).catch(() => {});
+    }
+    window.close();
+  };
+
   return (
     <div className="p-4 space-y-4 max-h-[480px] overflow-y-auto">
       {/* Header */}
@@ -52,6 +60,16 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
         </div>
       </div>
 
+      {/* How to use — IMPORTANT */}
+      <div className="p-3 rounded-xl bg-brand-50 border border-brand-200">
+        <p className="text-xs font-semibold text-brand-800 mb-1">📌 Explain kaise karein?</p>
+        <p className="text-[11px] text-brand-700 leading-relaxed">
+          1. Is popup ko band karo<br />
+          2. Koi bhi website par text <b>select</b> karo<br />
+          3. <b>💬 Explain</b> button dabao
+        </p>
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <div className="card bg-white border border-gray-100 text-center">
@@ -75,7 +93,7 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
         <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2">Quick Actions</h3>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { icon: '✨', label: 'Explain Text', desc: 'Alt + E', action: () => {} },
+            { icon: '✨', label: 'Explain Text', desc: 'Select text on page', action: handleExplainText },
             { icon: '📊', label: 'Daily Report', desc: 'View stats', action: () => onNavigate('report') },
             { icon: '🎭', label: 'Change Mode', desc: user.preferredMode, action: () => onNavigate('settings') },
             { icon: '📚', label: 'Study Notes', desc: 'View saved', action: () => onNavigate('notes') },
