@@ -98,7 +98,7 @@ export function App() {
 
   switch (page) {
     case 'settings': return <SettingsPage user={user} onBack={() => setPage('dashboard')} onLogout={() => setPage('landing')} />;
-    case 'subscription': return <SubscriptionPage user={user} onBack={() => setPage('dashboard')} onSuccess={refresh} />;
+    case 'subscription': return <SubscriptionPage user={user} onBack={() => setPage('dashboard')} onSuccess={() => { void refresh(); setPage('dashboard'); }} />;
     case 'report': return <DailyReport onBack={() => setPage('dashboard')} />;
     case 'notes': return <NotesPage onBack={() => setPage('dashboard')} />;
     default: return <Dashboard user={user} onNavigate={(p) => setPage(p as Page)} />;

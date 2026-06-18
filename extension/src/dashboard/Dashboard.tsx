@@ -70,7 +70,7 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
               onClick={() => onNavigate('subscription')}
               className="px-3 py-1.5 bg-white/20 rounded-lg text-xs font-semibold hover:bg-white/30"
             >
-              Upgrade ₹150/yr
+              Upgrade ₹150/mo
             </button>
           )}
         </div>

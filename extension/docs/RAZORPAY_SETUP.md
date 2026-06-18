@@ -1,104 +1,111 @@
-# Razorpay Payment Setup Guide
+# Razorpay Subscription Setup Guide
 
-## Step 1: Create Razorpay Account
-
-1. Sign up at [razorpay.com](https://razorpay.com)
-2. Complete KYC verification for live payments
-3. Use Test Mode for development
-
-## Step 2: Get API Keys
-
-1. Dashboard → Settings → API Keys
-2. Generate Key Pair
-3. Copy **Key ID** to `.env`:
+The extension sells a **₹150/month recurring subscription** using Razorpay
+Subscriptions. Pro is granted **only** by the backend webhook after Razorpay
+confirms a real payment — never from the extension UI.
 
 ```
-VITE_RAZORPAY_KEY_ID=rzp_test_xxxxxxxx
+Popup ──createSubscription()──▶ Cloud Function ──▶ Razorpay (creates subscription)
+  │                                                      │
+  └──opens short_url in new tab───────────────▶ User pays (UPI/Card/NetBanking)
+                                                         │
+Razorpay ──webhook (signed)──▶ Cloud Function ──▶ Firestore users/{uid}.subscriptionStatus = active
+  │
+Popup re-reads Firestore ──▶ Pro unlocked
 ```
 
-4. Keep **Key Secret** on your backend only (never in extension code)
+## Step 1: Razorpay Account
 
-## Step 3: Backend for Payment Verification
+1. Sign up at [razorpay.com](https://razorpay.com), finish KYC for live mode.
+2. Enable the **Subscriptions** product (Dashboard → Subscriptions).
+3. Use Test Mode while developing.
 
-The extension needs a backend to securely verify payments. Deploy this as a Cloud Function or Express server:
+## Step 2: API Keys
 
-```javascript
-// server.js
-const express = require('express');
-const crypto = require('crypto');
-const Razorpay = require('razorpay');
+Dashboard → Settings → API Keys → Generate. You get:
 
-const app = express();
-app.use(express.json());
+- **Key ID** (`rzp_test_...` / `rzp_live_...`) — public, goes in the `RAZORPAY_KEY_ID` param.
+- **Key Secret** — server-only, stored as a Firebase secret. Never ship it in the extension.
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+## Step 3: Create the Monthly Plan
 
-// Create order
-app.post('/api/payments/create-order', async (req, res) => {
-  const { amount, currency, userId } = req.body;
-  const order = await razorpay.orders.create({
-    amount,
-    currency: currency || 'INR',
-    receipt: `elw_${userId}_${Date.now()}`,
-    notes: { userId },
-  });
-  res.json({ orderId: order.id, amount: order.amount });
-});
+From `extension/functions/`:
 
-// Verify payment
-app.post('/api/payments/verify', (req, res) => {
-  const { orderId, paymentId, signature, userId } = req.body;
-  const expectedSignature = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-    .update(`${orderId}|${paymentId}`)
-    .digest('hex');
-
-  if (expectedSignature === signature) {
-    // Activate subscription in Firebase
-    res.json({ success: true, orderId, paymentId });
-  } else {
-    res.status(400).json({ success: false, error: 'Invalid signature' });
-  }
-});
-
-app.listen(3000);
+```bash
+RAZORPAY_KEY_ID=rzp_test_xxx RAZORPAY_KEY_SECRET=yyy npm run create-plan
 ```
 
-## Step 4: Configure Extension
+Copy the printed `plan_...` id — it becomes `RAZORPAY_PLAN_ID`.
+(You can also create it manually at Dashboard → Subscriptions → Plans: monthly, ₹150.)
+
+## Step 4: Configure & Deploy the Backend
+
+Firebase **Functions require the Blaze (pay-as-you-go) plan** to call Razorpay.
+
+```bash
+cd extension
+firebase use <your-project-id>
+
+# Non-secret params — put in functions/.env (see functions/.env.example)
+#   RAZORPAY_KEY_ID=rzp_test_xxx
+#   RAZORPAY_PLAN_ID=plan_xxx
+
+# Secrets
+firebase functions:secrets:set RAZORPAY_KEY_SECRET
+firebase functions:secrets:set RAZORPAY_WEBHOOK_SECRET   # value chosen in Step 5
+
+firebase deploy --only functions
+```
+
+Deploy prints two URLs. Note the `razorpayWebhook` URL.
+
+## Step 5: Webhook
+
+1. Dashboard → Settings → Webhooks → Add New Webhook.
+2. URL: the deployed `razorpayWebhook` function URL.
+3. Secret: any strong random string — the same value you set for `RAZORPAY_WEBHOOK_SECRET`.
+4. Active events:
+   - `subscription.activated`
+   - `subscription.charged`
+   - `subscription.resumed`
+   - `subscription.halted`
+   - `subscription.cancelled`
+   - `subscription.completed`
+   - `subscription.expired`
+   - `subscription.paused`
+
+## Step 6: Configure the Extension
+
+The extension calls the callable `createSubscription` via the Firebase SDK, so it
+only needs the normal Firebase config in `extension/.env`. If your functions are
+not in `us-central1`, also set:
 
 ```
-VITE_BACKEND_URL=https://your-api.example.com
+VITE_FIREBASE_FUNCTIONS_REGION=<your-region>
 ```
 
-## Step 5: Test Payments
+## Step 7: Test
 
-Use Razorpay test cards:
-- Card: `4111 1111 1111 1111`
-- Expiry: Any future date
-- CVV: Any 3 digits
+Razorpay test instruments:
+
+- Card: `4111 1111 1111 1111`, any future expiry, any CVV
 - UPI: `success@razorpay`
 
-## Step 6: Webhooks (Production)
-
-1. Dashboard → Webhooks → Add URL: `https://your-api.example.com/webhooks/razorpay`
-2. Events: `payment.captured`, `subscription.charged`, `payment.failed`
-3. Handle failed payments and send renewal reminders
-
-## Pricing
-
-- Plan: ₹150/year (15000 paise)
-- Currency: INR
-- Payment methods: UPI, Cards, Net Banking, Wallets
+Flow: Upgrade → Subscribe → authorize on the hosted page → webhook fires →
+reopen popup → Pro is active.
 
 ## Subscription Lifecycle
 
-1. User clicks "Pay ₹150/year"
-2. Extension creates order via backend
-3. Razorpay checkout opens
-4. User pays via UPI/Card
-5. Backend verifies signature
-6. Firebase user profile updated: `subscriptionStatus: 'active'`
-7. Renewal reminder 7 days before expiry
+1. User taps **Subscribe ₹150/month**.
+2. Backend creates a Razorpay subscription tied to the Firebase `uid` (via `notes`).
+3. Hosted authorization page opens; user sets up the mandate and pays.
+4. Razorpay charges monthly and sends `subscription.charged` each cycle.
+5. Webhook verifies the signature and sets `subscriptionStatus: 'active'` with
+   `subscriptionExpiry = current_end`.
+6. On halt/cancel/expiry the webhook sets `subscriptionStatus: 'expired'`.
+
+## Pricing
+
+- Plan: ₹150/month, recurring
+- Currency: INR
+- Methods: UPI, Cards, Net Banking, Wallets

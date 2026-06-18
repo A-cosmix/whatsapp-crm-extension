@@ -180,18 +180,17 @@ npm run build
 
 ---
 
-## PART 8: Razorpay Setup (Payment — ₹150/year)
+## PART 8: Razorpay Setup (Payment — ₹150/month recurring)
 
 > Sirf tab karo jab real users se payment lena ho
 
-1. https://razorpay.com par account banao
-2. KYC complete karo
-3. Dashboard → Settings → API Keys
-4. Key ID copy karo → `.env` mein:
-```env
-VITE_RAZORPAY_KEY_ID=rzp_test_xxxxx
-```
-5. Backend deploy karo payment verification ke liye
+1. https://razorpay.com par account banao, KYC + **Subscriptions** enable karo
+2. Dashboard → Settings → API Keys se keys lo
+3. Monthly ₹150 plan banao: `cd extension/functions && npm run create-plan`
+4. Params (`RAZORPAY_KEY_ID`, `RAZORPAY_PLAN_ID`) + secrets
+   (`RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`) set karke
+   `firebase deploy --only functions`
+5. Deployed `razorpayWebhook` URL → Razorpay Webhooks mein add karo
    - Poori guide: `docs/RAZORPAY_SETUP.md`
 
 ---

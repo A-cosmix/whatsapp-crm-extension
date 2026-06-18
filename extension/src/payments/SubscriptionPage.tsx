@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import type { UserProfile } from '@/types';
-import { PAID_PLAN_PRICE_INR } from '@/types';
-import { activateSubscription } from '@/services/auth/firebase-auth';
-import { scheduleRenewalReminder } from '@/services/payments/razorpay';
+import { PAID_PLAN_PRICE_INR, PAID_PLAN_PERIOD } from '@/types';
+import { createSubscription, openSubscriptionCheckout, waitForActiveSubscription } from '@/services/payments/razorpay';
 
 interface SubscriptionPageProps {
   user: UserProfile;
@@ -21,34 +20,42 @@ const FEATURES = [
   '✅ CosmiQ AI powered explanations',
 ];
 
-const DEFAULT_PAYMENT_LINK = import.meta.env.VITE_RAZORPAY_PAYMENT_LINK || '';
-
 export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPageProps) {
-  const [paid, setPaid] = useState(false);
+  const [awaiting, setAwaiting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  const handlePayment = async () => {
-    const stored = await chrome.storage.local.get('razorpayPaymentLink');
-    const link = (stored.razorpayPaymentLink as string) || DEFAULT_PAYMENT_LINK;
-
-    if (!link || link.includes('your-payment-link')) {
-      alert('Payment link not configured yet. Ask admin to add Razorpay Payment Link in Settings.');
-      return;
-    }
-
-    // Open Razorpay Payment Link — UPI, Card, Net Banking
-    const paymentUrl = `${link}${link.includes('?') ? '&' : '?'}email=${encodeURIComponent(user.email)}&prefill[email]=${encodeURIComponent(user.email)}`;
-    chrome.tabs.create({ url: paymentUrl });
-    setPaid(true);
+  const pollUntilActive = async () => {
+    const active = await waitForActiveSubscription(user.uid);
+    if (active) onSuccess();
   };
 
-  const handleActivatePro = async () => {
-    const expiry = Date.now() + 365 * 24 * 60 * 60 * 1000;
-    await activateSubscription(user.uid, `manual_${Date.now()}`, expiry);
-    await chrome.storage.local.set({
-      subscription: { status: 'active', expiryDate: expiry, activatedAt: Date.now() },
-    });
-    await scheduleRenewalReminder();
-    onSuccess();
+  const handleSubscribe = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      const { shortUrl } = await createSubscription();
+      await openSubscriptionCheckout(shortUrl);
+      setAwaiting(true);
+      void pollUntilActive();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not start payment';
+      setError(`Payment setup failed: ${message}. Make sure the backend is deployed and configured.`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setError('');
+    setBusy(true);
+    const active = await waitForActiveSubscription(user.uid, { attempts: 1, intervalMs: 0 });
+    setBusy(false);
+    if (active) {
+      onSuccess();
+    } else {
+      setError('Payment not confirmed yet. It can take a few seconds after you pay — try again.');
+    }
   };
 
   return (
@@ -61,7 +68,7 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
       <div className="text-center p-6 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
         <div className="text-4xl mb-2">⭐</div>
         <div className="text-3xl font-bold">₹{PAID_PLAN_PRICE_INR}</div>
-        <div className="text-sm opacity-90">per year • less than ₹13/month</div>
+        <div className="text-sm opacity-90">per {PAID_PLAN_PERIOD} • cancel anytime</div>
       </div>
 
       <div className="space-y-2">
@@ -71,22 +78,25 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
       </div>
 
       <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700">
-        💳 Pay via UPI, Debit Card, Credit Card through Razorpay Payment Link
+        💳 Auto-renews monthly via Razorpay — pay with UPI, Debit Card, Credit Card or Net Banking. Cancel anytime.
       </div>
 
-      <button onClick={handlePayment} className="btn-primary">
-        Pay ₹{PAID_PLAN_PRICE_INR}/year — Open Razorpay
-      </button>
+      {error && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-100 text-xs text-red-700">{error}</div>
+      )}
 
-      {paid && (
+      {!awaiting ? (
+        <button onClick={handleSubscribe} disabled={busy} className="btn-primary disabled:opacity-60">
+          {busy ? 'Opening Razorpay…' : `Subscribe ₹${PAID_PLAN_PRICE_INR}/${PAID_PLAN_PERIOD}`}
+        </button>
+      ) : (
         <div className="p-3 rounded-xl bg-green-50 border border-green-100 space-y-2">
           <p className="text-xs text-green-800">
-            ✅ Payment page khul gaya! UPI/Card se pay karo. Payment ke baad neeche button dabao.
+            ✅ Payment page khul gaya! UPI/Card se subscribe karo. Pro apne aap unlock ho jaayega payment confirm hote hi.
           </p>
-          <button onClick={handleActivatePro} className="btn-secondary text-sm py-2">
-            ✅ Maine Payment Kar Diya — Activate Pro
+          <button onClick={handleRefresh} disabled={busy} className="btn-secondary text-sm py-2 disabled:opacity-60">
+            {busy ? 'Checking…' : "I've paid — Check status"}
           </button>
-          <p className="text-[10px] text-gray-500">Payment verify hone tak 24 hours lag sakte hain</p>
         </div>
       )}
 

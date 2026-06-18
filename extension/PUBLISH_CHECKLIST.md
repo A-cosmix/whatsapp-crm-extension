@@ -47,14 +47,14 @@ Tumhara Firebase already setup hai. Verify karo:
 
 ---
 
-### STEP 3 — Razorpay Payment Link banao
-1. https://dashboard.razorpay.com login
-2. **Payment Links** → **Create Payment Link**
-3. Amount: **₹150**, Description: "Explain Like WhatsApp Pro - 1 Year"
-4. Link copy karo
-5. Extension → Settings → **Razorpay Payment Link** paste → Save
+### STEP 3 — Razorpay Subscription + Backend (₹150/month)
+1. https://dashboard.razorpay.com login → **Subscriptions** enable, API keys lo
+2. Monthly ₹150 plan banao: `cd extension/functions && npm run create-plan`
+3. Params + secrets set karke `firebase deploy --only functions`
+4. Deployed `razorpayWebhook` URL → Razorpay → Webhooks mein add karo
 
-> Payment verify manually hota hai (user "Maine Payment Kar Diya" dabata hai). Future mein backend add kar sakte ho.
+> Poori step-by-step guide: `extension/docs/RAZORPAY_SETUP.md`. Pro ab sirf
+> signature-verified webhook se activate hota hai — koi manual "Maine pay kiya" button nahi.
 
 ---
 

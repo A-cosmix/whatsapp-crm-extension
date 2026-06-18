@@ -190,7 +190,7 @@ export function canUseFeature(profile: UserProfile | null, isPremiumMode = false
 
   // After trial: free basic modes only, limited daily use
   if (isPremiumMode) {
-    return { allowed: false, reason: 'Pro mode requires subscription. Upgrade for ₹150/year!' };
+    return { allowed: false, reason: 'Pro mode requires subscription. Upgrade for ₹150/month!' };
   }
   if (count >= FREE_EXPIRED_DAILY_LIMIT) {
     return { allowed: false, reason: `Daily free limit reached (${FREE_EXPIRED_DAILY_LIMIT}/day). Upgrade for unlimited!` };
