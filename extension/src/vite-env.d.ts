@@ -7,7 +7,9 @@ interface ImportMetaEnv {
   readonly VITE_FIREBASE_STORAGE_BUCKET: string;
   readonly VITE_FIREBASE_MESSAGING_SENDER_ID: string;
   readonly VITE_FIREBASE_APP_ID: string;
-  readonly VITE_RAZORPAY_KEY_ID: string;
+  readonly VITE_HF_SPACE_ID: string;
+  readonly VITE_AI_PROVIDER: string;
+  readonly VITE_RAZORPAY_PAYMENT_LINK: string;
   readonly VITE_BACKEND_URL: string;
 }
 

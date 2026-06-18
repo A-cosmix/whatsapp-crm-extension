@@ -7,7 +7,7 @@ import {
   buildYouTubePrompt,
   buildPdfPrompt,
 } from '@/lib/prompts';
-import { explainText, explainWord, generateNotes, summarizeContent, hashText } from '@/services/ai/claude-service';
+import { explainText, explainWord, generateNotes, summarizeContent, hashText } from '@/services/ai/ai-service';
 import {
   cacheExplanation,
   getCachedExplanation,
@@ -152,6 +152,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     await chrome.storage.local.set({
       installDate: Date.now(),
       onboardingComplete: false,
+      aiProvider: 'cosmiq',
     });
     chrome.tabs.create({ url: chrome.runtime.getURL('src/popup/index.html') });
   }

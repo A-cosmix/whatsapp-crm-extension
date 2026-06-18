@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/types';
 import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
 import { ModeCard } from '@/components/ModeCard';
@@ -15,11 +15,24 @@ interface SettingsPageProps {
 export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
   const { settings, update } = useSettings();
   const [apiKey, setApiKey] = useState('');
+  const [paymentLink, setPaymentLink] = useState('');
+  const [aiProvider, setAiProvider] = useState<'cosmiq' | 'claude'>('cosmiq');
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const handleSaveApiKey = async () => {
-    await chrome.storage.local.set({ claudeApiKey: apiKey });
+  useEffect(() => {
+    chrome.storage.local.get(['claudeApiKey', 'razorpayPaymentLink', 'aiProvider']).then((r) => {
+      if (r.claudeApiKey) setApiKey('••••••••' + (r.claudeApiKey as string).slice(-4));
+      if (r.razorpayPaymentLink) setPaymentLink(r.razorpayPaymentLink as string);
+      if (r.aiProvider) setAiProvider(r.aiProvider as 'cosmiq' | 'claude');
+    });
+  }, []);
+
+  const handleSaveSettings = async () => {
+    const updates: Record<string, string> = { aiProvider };
+    if (apiKey && !apiKey.startsWith('••')) updates.claudeApiKey = apiKey;
+    if (paymentLink) updates.razorpayPaymentLink = paymentLink;
+    await chrome.storage.local.set(updates);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -60,20 +73,58 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
         <h2 className="text-lg font-bold">Settings</h2>
       </div>
 
-      {/* API Key */}
+      {/* AI Provider */}
       <div className="space-y-2">
-        <h3 className="text-xs font-semibold text-gray-500 uppercase">Claude API Key</h3>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          className="input-field"
-          placeholder="sk-ant-..."
-        />
-        <button onClick={handleSaveApiKey} className="btn-primary text-sm py-2">
-          {saved ? '✅ Saved!' : 'Save API Key'}
-        </button>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase">AI Engine</h3>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setAiProvider('cosmiq')}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${aiProvider === 'cosmiq' ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-gray-200'}`}
+          >
+            🚀 CosmiQ (Free)
+          </button>
+          <button
+            onClick={() => setAiProvider('claude')}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium border ${aiProvider === 'claude' ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-gray-200'}`}
+          >
+            🤖 Claude (Paid)
+          </button>
+        </div>
+        <p className="text-[10px] text-gray-400">Default: CosmiQ AI on Hugging Face — FREE, no API key needed</p>
       </div>
+
+      {/* Claude API Key (only if Claude selected) */}
+      {aiProvider === 'claude' && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase">Claude API Key</h3>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className="input-field"
+            placeholder="sk-ant-..."
+          />
+        </div>
+      )}
+
+      {/* Razorpay Payment Link */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase">Razorpay Payment Link</h3>
+        <input
+          type="url"
+          value={paymentLink}
+          onChange={(e) => setPaymentLink(e.target.value)}
+          className="input-field"
+          placeholder="https://rzp.io/l/your-link"
+        />
+        <p className="text-[10px] text-gray-400">Razorpay Dashboard → Payment Links → copy link</p>
+      </div>
+
+      <button onClick={handleSaveSettings} className="btn-primary text-sm py-2">
+        {saved ? '✅ Saved!' : 'Save Settings'}
+      </button>
+
+      <hr className="border-gray-100" />
 
       {/* Default Mode */}
       <div className="space-y-2">

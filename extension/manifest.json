@@ -60,6 +60,8 @@
     "https://securetoken.googleapis.com/*",
     "https://api.razorpay.com/*",
     "https://checkout.razorpay.com/*",
+    "https://*.hf.space/*",
+    "https://huggingface.co/*",
     "<all_urls>"
   ],
   "commands": {

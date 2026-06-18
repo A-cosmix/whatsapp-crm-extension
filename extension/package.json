@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@gradio/client": "^2.3.0",
     "firebase": "^11.6.0",
     "idb": "^8.0.2",
     "lucide-react": "^0.511.0",
