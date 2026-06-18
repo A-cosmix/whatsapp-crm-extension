@@ -30,8 +30,8 @@ import { verifyPayment } from '@/services/payments/razorpay';
 import type { ExplanationRecord, DailyLearningReport } from '@/types';
 
 async function handleExplainText(payload: ExplainTextPayload) {
-  const { text, mode, url, pageTitle } = payload;
-  const cacheId = hashText(`${text}_${mode}`);
+  const { text, mode, url, pageTitle, surroundingText } = payload;
+  const cacheId = hashText(`${text}_${mode}_${surroundingText?.slice(0, 100) ?? ''}`);
   const cached = await getCachedExplanation(cacheId);
   if (cached) return { success: true, explanation: cached.explanation, cached: true };
 
@@ -40,7 +40,7 @@ async function handleExplainText(payload: ExplainTextPayload) {
   const usageCheck = canUseFeature(profile as never, modeConfig?.isPremium);
   if (!usageCheck.allowed) return { success: false, error: usageCheck.reason };
 
-  const prompt = buildExplainPrompt(text, mode);
+  const prompt = buildExplainPrompt(text, mode, { pageTitle, pageUrl: url, surroundingText });
   const explanation = await explainText(prompt);
 
   const record: ExplanationRecord = {
