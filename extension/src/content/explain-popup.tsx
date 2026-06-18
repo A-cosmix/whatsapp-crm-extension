@@ -180,6 +180,11 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
           ) : error ? (
             <div style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
               {error}
+              {error.includes('paid subscription') || error.includes('trial has expired') || error.includes('Daily limit') ? (
+                <p style={{ color: '#6b7280', fontSize: '12px', marginTop: '8px' }}>
+                  Trial mein saare modes free hain. Extension icon → Upgrade dabao agar trial khatam ho gaya.
+                </p>
+              ) : null}
               <button
                 onClick={() => generateExplanation(mode)}
                 style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}
