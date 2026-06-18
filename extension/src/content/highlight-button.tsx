@@ -4,7 +4,7 @@ import { WordExplainer } from './word-explainer';
 import { FocusMode } from './focus-mode';
 import type { ExplanationMode } from '@/types';
 import { getSettings } from '@/services/storage/indexed-db';
-import { isValidExplainSelection, isExtensionContextValid, pingExtension } from '@/utils/helpers';
+import { isValidExplainSelection, isExtensionContextValid, pingExtension, autoReloadIfContextDead, clearContextReloadFlag } from '@/utils/helpers';
 
 function RefreshBanner({ onRefresh }: { onRefresh: () => void }) {
   return (
@@ -43,17 +43,23 @@ export function HighlightExplainer() {
   const selectionTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
+    if (autoReloadIfContextDead()) return;
     if (!isExtensionContextValid()) {
       setShowRefreshBanner(true);
     }
   }, []);
 
   const openExplainPopup = async (text: string) => {
+    if (autoReloadIfContextDead()) return;
+
     if (!isExtensionContextValid() || !(await pingExtension())) {
+      if (autoReloadIfContextDead()) return;
       setShowRefreshBanner(true);
       setShowButton(false);
       return;
     }
+
+    clearContextReloadFlag();
     setSelectedText(text);
     setShowPopup(true);
     setShowButton(false);

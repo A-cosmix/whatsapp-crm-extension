@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
-import { sendMessage, EXTENSION_RELOAD_MESSAGE } from '@/utils/helpers';
+import { sendMessage, EXTENSION_RELOAD_MESSAGE, isContextInvalidError, autoReloadIfContextDead, clearContextReloadFlag } from '@/utils/helpers';
 
 interface ExplainPopupProps {
   text: string;
@@ -38,13 +38,19 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
       });
 
       if (response?.success) {
+        clearContextReloadFlag();
         setExplanation(response.explanation || '');
       } else {
         setError(response?.error || 'Failed to generate explanation');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
-      setError(msg === 'EXTENSION_CONTEXT_INVALID' ? EXTENSION_RELOAD_MESSAGE : msg);
+      if (isContextInvalidError(msg)) {
+        if (autoReloadIfContextDead()) return;
+        setError(EXTENSION_RELOAD_MESSAGE);
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -183,7 +189,7 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
           ) : error ? (
             <div style={{ color: '#ef4444', fontSize: '14px', textAlign: 'center', padding: '20px' }}>
               {error}
-              {error.includes('refresh') || error === EXTENSION_RELOAD_MESSAGE ? (
+              {error.includes('refresh') || error.includes('invalidated') || error === EXTENSION_RELOAD_MESSAGE ? (
                 <button
                   onClick={() => window.location.reload()}
                   style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}

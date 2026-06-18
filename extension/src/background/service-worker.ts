@@ -162,13 +162,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       type: 'basic',
       iconUrl: 'public/icon/128.png',
       title: 'Explain Like WhatsApp',
-      message: 'Extension update hui! Open tabs par F5 dabao, phir Explain kaam karega.',
+      message: 'Extension update hui! Open tabs refresh ho rahi hain...',
     });
 
     const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
     for (const tab of tabs) {
       if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, { type: 'EXTENSION_UPDATED' }).catch(() => {});
+        chrome.tabs.reload(tab.id).catch(() => {});
       }
     }
   }

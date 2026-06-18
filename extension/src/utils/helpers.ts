@@ -67,7 +67,30 @@ export function isValidExplainSelection(text: string): boolean {
 }
 
 export const EXTENSION_RELOAD_MESSAGE =
-  'Extension reload ho gayi hai. Page refresh karo (F5) aur phir dubara try karo.';
+  'Extension reload ho gayi hai. Page refresh ho raha hai...';
+
+const CONTEXT_RELOAD_KEY = 'elw_auto_reload_once';
+
+export function isContextInvalidError(message: string): boolean {
+  return (
+    message === 'EXTENSION_CONTEXT_INVALID' ||
+    message.toLowerCase().includes('extension context invalidated') ||
+    message.toLowerCase().includes('context invalidated')
+  );
+}
+
+/** Auto-refresh page once when extension context is dead. Returns true if reloading. */
+export function autoReloadIfContextDead(): boolean {
+  if (isExtensionContextValid()) return false;
+  if (sessionStorage.getItem(CONTEXT_RELOAD_KEY)) return false;
+  sessionStorage.setItem(CONTEXT_RELOAD_KEY, '1');
+  window.location.reload();
+  return true;
+}
+
+export function clearContextReloadFlag(): void {
+  sessionStorage.removeItem(CONTEXT_RELOAD_KEY);
+}
 
 export function formatDate(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString('en-IN', {
