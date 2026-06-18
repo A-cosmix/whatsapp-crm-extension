@@ -31,7 +31,11 @@ export async function trackAnalytics(
     userId,
   };
 
-  await saveEvent(event);
+  try {
+    await saveEvent(event);
+  } catch {
+    // idb can fail in MV3 service worker — chrome.storage batch below is enough
+  }
 
   // Batch sync to Firebase analytics endpoint when online
   try {

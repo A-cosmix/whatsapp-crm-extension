@@ -25,10 +25,25 @@ import {
   canUseFeature,
   saveExplanationHistorySafe,
   getSubscriptionStatus,
-  syncProfileToFirestore,
 } from '@/services/auth/firebase-auth';
 import { verifyPayment } from '@/services/payments/razorpay';
-import type { ExplanationRecord, DailyLearningReport } from '@/types';
+import type { DailyLearningReport } from '@/types';
+
+async function recordExplanationUsage(
+  profile: Record<string, unknown> | null,
+  data: { text: string; explanation: string; mode: string; url: string; pageTitle: string },
+): Promise<void> {
+  try {
+    if (profile?.uid) {
+      await incrementUsageLocal(profile.uid as string);
+    }
+    await incrementMetric(data.mode);
+    await trackAnalytics('explanation_generated', { mode: data.mode, url: data.url.slice(0, 100) }, profile?.uid as string);
+    await updateDailyReport(data.mode, data.url, data.pageTitle);
+  } catch {
+    // Bookkeeping must never block explanations
+  }
+}
 
 async function handleExplainText(payload: ExplainTextPayload) {
   const { text, mode, url, pageTitle } = payload;
@@ -42,32 +57,39 @@ async function handleExplainText(payload: ExplainTextPayload) {
   if (!usageCheck.allowed) return { success: false, error: usageCheck.reason };
 
   const prompt = buildExplainPrompt(text, mode);
-  const explanation = await explainText(prompt);
-
-  const record: ExplanationRecord = {
-    id: cacheId,
-    originalText: text,
-    explanation,
-    mode,
-    url,
-    pageTitle,
-    timestamp: Date.now(),
-    cached: true,
-  };
-  await cacheExplanation(record);
-
-  if (profile?.uid) {
-    const uid = profile.uid as string;
-    await incrementUsageLocal(uid);
-    // Firestore writes from service worker often fail (no auth session here).
-    // Sync happens from popup; never block the explanation response.
-    void syncProfileToFirestore(uid).catch(() => {});
-    void saveExplanationHistorySafe(uid, { originalText: text, explanation, mode, url, pageTitle });
+  let explanation: string;
+  try {
+    explanation = await explainText(prompt);
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : 'AI request failed' };
   }
 
-  await incrementMetric(mode);
-  await trackAnalytics('explanation_generated', { mode, url: url.slice(0, 100) }, profile?.uid as string);
-  await updateDailyReport(mode, url, pageTitle);
+  try {
+    await cacheExplanation({
+      id: cacheId,
+      originalText: text,
+      explanation,
+      mode,
+      url,
+      pageTitle,
+      timestamp: Date.now(),
+      cached: true,
+    });
+  } catch {
+    // Cache failure is non-fatal
+  }
+
+  if (profile?.uid) {
+    void saveExplanationHistorySafe(profile.uid as string, {
+      originalText: text,
+      explanation,
+      mode,
+      url,
+      pageTitle,
+    });
+  }
+
+  void recordExplanationUsage(profile, { text, explanation, mode, url, pageTitle });
 
   return { success: true, explanation, cached: false };
 }
@@ -123,25 +145,29 @@ async function handlePdfSummary(payload: PdfSummaryPayload) {
 }
 
 async function updateDailyReport(mode: string, url: string, pageTitle: string) {
-  const today = new Date().toISOString().split('T')[0];
-  const existing = await getDailyReport(today);
-  const report: DailyLearningReport = existing || {
-    date: today,
-    topicsLearned: [],
-    websitesVisited: [],
-    explanationsCount: 0,
-    modesUsed: {},
-    streak: 0,
-  };
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const existing = await getDailyReport(today);
+    const report: DailyLearningReport = existing || {
+      date: today,
+      topicsLearned: [],
+      websitesVisited: [],
+      explanationsCount: 0,
+      modesUsed: {},
+      streak: 0,
+    };
 
-  report.explanationsCount++;
-  report.modesUsed[mode] = (report.modesUsed[mode] || 0) + 1;
-  if (!report.websitesVisited.includes(url)) report.websitesVisited.push(url);
-  if (pageTitle && !report.topicsLearned.includes(pageTitle)) {
-    report.topicsLearned.push(pageTitle.slice(0, 100));
+    report.explanationsCount++;
+    report.modesUsed[mode] = (report.modesUsed[mode] || 0) + 1;
+    if (!report.websitesVisited.includes(url)) report.websitesVisited.push(url);
+    if (pageTitle && !report.topicsLearned.includes(pageTitle)) {
+      report.topicsLearned.push(pageTitle.slice(0, 100));
+    }
+
+    await saveDailyReport(report);
+  } catch {
+    // idb may be unavailable in service worker
   }
-
-  await saveDailyReport(report);
 }
 
 chrome.runtime.onInstalled.addListener(async (details) => {
