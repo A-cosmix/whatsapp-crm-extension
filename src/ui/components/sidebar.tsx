@@ -1,18 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  FileSearch,
-  Target,
-  FileText,
-  MessageSquare,
-  Mic,
-  Linkedin,
-  Kanban,
-  DollarSign,
-  Map,
-  Settings,
-  Crown,
-  Sparkles,
+  LayoutDashboard, FileSearch, Target, FileText, MessageSquare, Mic,
+  Linkedin, Kanban, DollarSign, Map, Settings, Crown, Sparkles,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -34,32 +23,36 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside className="w-64 min-h-screen border-r border-white/5 bg-hiremate-card/50 backdrop-blur-xl flex flex-col">
-      <div className="p-6 border-b border-white/5">
+    <aside className="w-64 min-h-screen flex flex-col relative z-20 border-r border-white/[0.06]"
+      style={{ background: 'linear-gradient(180deg, rgba(12,12,18,0.95) 0%, rgba(8,8,12,0.98) 100%)', backdropFilter: 'blur(20px)' }}
+    >
+      {/* Logo */}
+      <div className="p-5 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-hiremate-primary to-hiremate-secondary flex items-center justify-center shadow-glow">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-hiremate-primary via-hiremate-secondary to-hiremate-accent flex items-center justify-center shadow-neon">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="font-bold text-lg gradient-text">HireMate AI</h1>
-            <p className="text-[10px] text-hiremate-muted">Land Jobs Faster</p>
+            <h1 className="font-display font-bold text-base gradient-text-static display-font">HireMate AI</h1>
+            <p className="text-[9px] text-hiremate-muted tracking-[0.2em] uppercase">Land Jobs Faster</p>
           </div>
         </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      {/* Nav */}
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
-            className={({ isActive }) =>
-              cn(isActive ? 'nav-link-active' : 'nav-link', 'relative')
-            }
+            className={({ isActive }) => cn(isActive ? 'nav-link-active' : 'nav-link', 'relative')}
           >
-            <item.icon className="w-5 h-5" />
-            <span className="text-sm">{item.label}</span>
+            <item.icon className="w-4 h-4 shrink-0" />
+            <span>{item.label}</span>
             {item.premium && (
-              <span className="absolute right-3 text-[9px] font-bold text-hiremate-secondary bg-hiremate-primary/20 px-1.5 py-0.5 rounded">
+              <span className="absolute right-2 text-[8px] font-bold tracking-wider px-1.5 py-0.5 rounded-md"
+                style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.3), rgba(244,114,182,0.2))', color: '#E9D5FF' }}
+              >
                 PRO
               </span>
             )}
@@ -67,12 +60,17 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
-        <div className="glass-card p-4 bg-gradient-to-br from-hiremate-primary/10 to-transparent">
-          <p className="text-xs text-hiremate-muted mb-2">Dream company offer letter incoming.</p>
-          <NavLink to="/pricing" className="text-xs font-semibold text-hiremate-secondary hover:text-hiremate-primary transition-colors">
-            Upgrade to Pro →
-          </NavLink>
+      {/* Upgrade CTA */}
+      <div className="p-3 border-t border-white/[0.06]">
+        <div className="gradient-border-card">
+          <div className="inner p-4">
+            <p className="text-[11px] text-hiremate-muted mb-2 leading-relaxed">
+              Offer letter loading... <span className="text-hiremate-accent">✨</span>
+            </p>
+            <NavLink to="/pricing" className="text-xs font-bold gradient-text-static hover:opacity-80 transition-opacity">
+              Upgrade to Pro →
+            </NavLink>
+          </div>
         </div>
       </div>
     </aside>

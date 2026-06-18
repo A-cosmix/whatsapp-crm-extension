@@ -1,3 +1,4 @@
+export { AuroraBackground } from './aurora-background';
 export { GlassCard, FeatureCard, StatCard } from './glass-card';
 export { ScoreRing, GradeBadge } from './score-ring';
 export { Button, Input, Textarea, Select } from './ui-primitives';

@@ -18,34 +18,36 @@ export function Header({ title, subtitle }: HeaderProps) {
   }, [loadUser, load]);
 
   return (
-    <header className="flex items-center justify-between px-8 py-6 border-b border-white/5">
+    <header className="flex items-center justify-between px-8 py-5 border-b border-white/[0.06] relative"
+      style={{ background: 'rgba(8,8,12,0.6)', backdropFilter: 'blur(12px)' }}
+    >
       <div>
-        <h1 className="text-2xl font-bold text-hiremate-text">{title}</h1>
-        {subtitle && <p className="text-sm text-hiremate-muted mt-1">{subtitle}</p>}
+        <h1 className="text-2xl font-display font-bold display-font text-hiremate-text">{title}</h1>
+        {subtitle && <p className="text-sm text-hiremate-muted mt-0.5">{subtitle}</p>}
       </div>
 
-      <div className="flex items-center gap-4">
-        {subscription && subscription.plan === 'free' && usage && (
-          <div className="hidden md:flex items-center gap-3 text-xs text-hiremate-muted">
-            <span>Scans: {usage.resumeScansUsed}/{usage.resumeScans}</span>
-            <span>Letters: {usage.coverLettersUsed}/{usage.coverLetters}</span>
+      <div className="flex items-center gap-3">
+        {subscription?.plan === 'free' && usage && (
+          <div className="hidden md:flex items-center gap-2">
+            <span className="badge-cyan text-[10px]">Scans {usage.resumeScansUsed}/{usage.resumeScans}</span>
+            <span className="badge-accent text-[10px]">Letters {usage.coverLettersUsed}/{usage.coverLetters}</span>
           </div>
         )}
 
         {subscription && subscription.plan !== 'free' && <PremiumBadge plan={subscription.plan} />}
 
-        <button className="btn-ghost p-2 rounded-lg relative">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-hiremate-primary rounded-full" />
+        <button className="btn-ghost p-2.5 rounded-xl relative border border-white/[0.06]">
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-hiremate-accent animate-pulse" />
         </button>
 
-        <div className="flex items-center gap-3 pl-4 border-l border-white/10">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-hiremate-primary to-hiremate-secondary flex items-center justify-center">
+        <div className="flex items-center gap-2.5 pl-3 border-l border-white/[0.08]">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-hiremate-primary via-hiremate-secondary to-hiremate-accent flex items-center justify-center shadow-glow">
             <User className="w-4 h-4 text-white" />
           </div>
           <div className="hidden sm:block">
-            <p className="text-sm font-medium">{user?.name ?? 'Guest'}</p>
-            <p className="text-xs text-hiremate-muted">{user?.email ?? 'Sign in to sync'}</p>
+            <p className="text-sm font-semibold">{user?.name ?? 'Guest'}</p>
+            <p className="text-[10px] text-hiremate-muted">{user?.email ?? 'Sign in to sync'}</p>
           </div>
         </div>
       </div>
