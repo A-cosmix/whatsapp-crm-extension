@@ -16,14 +16,16 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
   const { settings, update } = useSettings();
   const [apiKey, setApiKey] = useState('');
   const [paymentLink, setPaymentLink] = useState('');
+  const [backendUrl, setBackendUrl] = useState('');
   const [aiProvider, setAiProvider] = useState<'cosmiq' | 'claude'>('cosmiq');
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
-    chrome.storage.local.get(['claudeApiKey', 'razorpayPaymentLink', 'aiProvider']).then((r) => {
+    chrome.storage.local.get(['claudeApiKey', 'razorpayPaymentLink', 'backendUrl', 'aiProvider']).then((r) => {
       if (r.claudeApiKey) setApiKey('••••••••' + (r.claudeApiKey as string).slice(-4));
       if (r.razorpayPaymentLink) setPaymentLink(r.razorpayPaymentLink as string);
+      if (r.backendUrl) setBackendUrl(r.backendUrl as string);
       if (r.aiProvider) setAiProvider(r.aiProvider as 'cosmiq' | 'claude');
     });
   }, []);
@@ -32,6 +34,7 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
     const updates: Record<string, string> = { aiProvider };
     if (apiKey && !apiKey.startsWith('••')) updates.claudeApiKey = apiKey;
     if (paymentLink) updates.razorpayPaymentLink = paymentLink;
+    updates.backendUrl = backendUrl.trim();
     await chrome.storage.local.set(updates);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -129,6 +132,21 @@ export function SettingsPage({ user, onBack, onLogout }: SettingsPageProps) {
           placeholder="https://rzp.io/l/your-link"
         />
         <p className="text-[10px] text-gray-400">Razorpay Dashboard → Payment Links → copy link</p>
+      </div>
+
+      {/* Subscription Backend (Apps Script Web App) */}
+      <div className="space-y-2">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase">Subscription Backend URL</h3>
+        <input
+          type="url"
+          value={backendUrl}
+          onChange={(e) => setBackendUrl(e.target.value)}
+          className="input-field"
+          placeholder="https://script.google.com/macros/s/.../exec"
+        />
+        <p className="text-[10px] text-gray-400">
+          Google Apps Script Web App URL. Verifies payments + prevents trial reuse. See docs/GOOGLE_SHEETS_BACKEND.md
+        </p>
       </div>
 
       <button onClick={handleSaveSettings} className="btn-primary text-sm py-2">

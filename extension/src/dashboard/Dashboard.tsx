@@ -47,7 +47,10 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
           <h2 className="text-lg font-bold text-gray-900">Hey, {user.displayName}! 👋</h2>
           <p className="text-xs text-gray-500">Internet simplified for you</p>
         </div>
-        <button onClick={() => onNavigate('settings')} className="p-2 rounded-xl hover:bg-gray-100 text-lg">⚙️</button>
+        <div className="flex items-center gap-1">
+          <button onClick={() => onNavigate('profile')} className="p-2 rounded-xl hover:bg-gray-100 text-lg" title="Profile">👤</button>
+          <button onClick={() => onNavigate('settings')} className="p-2 rounded-xl hover:bg-gray-100 text-lg" title="Settings">⚙️</button>
+        </div>
       </div>
 
       {/* Status Card */}
