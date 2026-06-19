@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { EXPLANATION_MODES, type ExplanationMode } from '@/types';
 import { ModeCard } from '@/components/ModeCard';
@@ -10,23 +10,7 @@ import '@/styles/globals.css';
 function OptionsApp() {
   const { settings, update } = useSettings();
   const { user } = useAuth();
-  const [apiKey, setApiKey] = useState('');
-  const [saved, setSaved] = useState(false);
-  const [activeTab, setActiveTab] = useState<'general' | 'modes' | 'api' | 'data'>('general');
-
-  useEffect(() => {
-    chrome.storage.local.get('claudeApiKey').then((r) => {
-      if (r.claudeApiKey) setApiKey('••••••••' + (r.claudeApiKey as string).slice(-4));
-    });
-  }, []);
-
-  const handleSaveApiKey = async () => {
-    if (!apiKey.startsWith('••')) {
-      await chrome.storage.local.set({ claudeApiKey: apiKey });
-    }
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  const [activeTab, setActiveTab] = useState<'general' | 'modes' | 'data'>('general');
 
   const handleModeChange = async (mode: ExplanationMode) => {
     await update({ defaultMode: mode });
@@ -45,7 +29,7 @@ function OptionsApp() {
         </div>
 
         <div className="flex gap-2 mb-6">
-          {(['general', 'modes', 'api', 'data'] as const).map((tab) => (
+          {(['general', 'modes', 'data'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -123,28 +107,6 @@ function OptionsApp() {
                   onClick={() => handleModeChange(mode.id)}
                 />
               ))}
-            </div>
-          )}
-
-          {activeTab === 'api' && (
-            <div className="space-y-4">
-              <h2 className="font-semibold text-gray-900">Claude API Configuration</h2>
-              <p className="text-sm text-gray-500">
-                Get your API key from{' '}
-                <a href="https://console.anthropic.com" target="_blank" rel="noopener" className="text-brand-600 underline">
-                  console.anthropic.com
-                </a>
-              </p>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="input-field"
-                placeholder="sk-ant-api03-..."
-              />
-              <button onClick={handleSaveApiKey} className="btn-primary">
-                {saved ? '✅ Saved!' : 'Save API Key'}
-              </button>
             </div>
           )}
 
