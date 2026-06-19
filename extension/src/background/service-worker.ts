@@ -267,7 +267,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       type: 'basic',
       iconUrl: 'public/icon/128.png',
       title: 'Explain Like WhatsApp Updated',
-      message: 'Open tabs par F5 dabao taaki extension sahi kaam kare.',
+      message: 'Press F5 on your open tabs so the extension works correctly.',
     });
   }
 

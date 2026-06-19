@@ -33,12 +33,12 @@ export function ProfilePage({ user, onBack, onLogout, onUpgrade, onRefresh }: Pr
     try {
       const res = await onRefresh();
       if (res?.pro) {
-        setRefreshMsg('🎉 Pro access active hai!');
+        setRefreshMsg('🎉 Pro access is active!');
       } else {
-        setRefreshMsg('Abhi tak Pro detect nahi hua. Payment ke baad 1-2 min lagte hain.');
+        setRefreshMsg('No Pro access detected yet. It can take 1–2 minutes after payment.');
       }
     } catch {
-      setRefreshMsg('Status check nahi ho paya. Internet check karke try karo.');
+      setRefreshMsg('Could not check status. Check your internet connection and try again.');
     } finally {
       setRefreshing(false);
     }

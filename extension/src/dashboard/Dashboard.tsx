@@ -81,11 +81,11 @@ export function Dashboard({ user, onNavigate }: DashboardProps) {
 
       {/* How to use — IMPORTANT */}
       <div className="p-3 rounded-xl bg-brand-50 border border-brand-200">
-        <p className="text-xs font-semibold text-brand-800 mb-1">📌 Explain kaise karein?</p>
+        <p className="text-xs font-semibold text-brand-800 mb-1">📌 How to use</p>
         <p className="text-[11px] text-brand-700 leading-relaxed">
-          1. Is popup ko band karo<br />
-          2. Koi bhi website par text <b>select</b> karo<br />
-          3. <b>💬 Explain</b> button dabao
+          1. Close this popup<br />
+          2. <b>Select</b> any text on a website<br />
+          3. Click the <b>💬 Explain</b> button
         </p>
       </div>
 

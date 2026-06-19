@@ -26,7 +26,7 @@ export function sendMessage<T = Record<string, unknown>>(type: string, payload?:
           return;
         }
         if (response === undefined) {
-          reject(new Error('Extension is waking up. 5 second wait karo, phir try karo.'));
+          reject(new Error('Extension is waking up. Please wait 5 seconds and try again.'));
           return;
         }
         resolve(response as T);
@@ -67,7 +67,7 @@ export function isValidExplainSelection(text: string): boolean {
 }
 
 export const EXTENSION_RELOAD_MESSAGE =
-  'Extension reload ho gayi hai. Page refresh ho raha hai...';
+  'Extension reloaded. Refreshing the page…';
 
 const CONTEXT_RELOAD_KEY = 'elw_auto_reload_once';
 

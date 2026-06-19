@@ -194,7 +194,7 @@ export function ExplainPopup({ text, defaultMode, onClose }: ExplainPopupProps) 
                   onClick={() => window.location.reload()}
                   style={{ display: 'block', margin: '12px auto 0', padding: '8px 16px', borderRadius: '8px', border: 'none', background: '#25D366', color: 'white', cursor: 'pointer' }}
                 >
-                  🔄 Page Refresh Karo
+                  🔄 Refresh Page
                 </button>
               ) : (
                 <button
