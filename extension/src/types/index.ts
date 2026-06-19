@@ -124,6 +124,25 @@ export interface PaymentOrder {
   createdAt: number;
 }
 
+export type BackendPlan = 'pro' | 'trial' | 'expired' | 'free' | 'unknown';
+
+/** Normalized response from the Google Sheets / Apps Script backend. */
+export interface BackendStatus {
+  ok: boolean;
+  pro: boolean;
+  plan: BackendPlan;
+  expiry: number | null;
+  paymentId?: string;
+  trial: {
+    used: boolean;
+    start: number | null;
+    end: number | null;
+    /** Email that originally registered the trial on this device, if any. */
+    ownerEmail?: string;
+  };
+  error?: string;
+}
+
 export interface Achievement {
   id: string;
   name: string;
@@ -167,7 +186,8 @@ export type MessageType =
   | 'VERIFY_PAYMENT'
   | 'CREATE_PAYMENT_ORDER'
   | 'GET_DAILY_REPORT'
-  | 'SHARE_EXPLANATION';
+  | 'SHARE_EXPLANATION'
+  | 'SYNC_ACCOUNT';
 
 export interface ExtensionMessage {
   type: MessageType;
