@@ -170,6 +170,38 @@ export function getSubscriptionStatus(profile: UserProfile): SubscriptionStatus 
   return 'expired';
 }
 
+function hasActiveSubscription(
+  profile: Partial<Pick<UserProfile, 'subscriptionStatus' | 'subscriptionExpiry'>> | null | undefined,
+): boolean {
+  return (
+    !!profile &&
+    profile.subscriptionStatus === 'active' &&
+    typeof profile.subscriptionExpiry === 'number' &&
+    profile.subscriptionExpiry > Date.now()
+  );
+}
+
+/**
+ * Merge a locally-cached profile with the freshly fetched remote profile while
+ * never downgrading a still-valid Pro subscription. Firestore in this MV3
+ * extension is flaky (long-polling/offline), so a payment that has been
+ * activated locally must survive a stale/missing remote read.
+ */
+export function mergeProfilePreferActiveSubscription(
+  local: Partial<UserProfile> | null | undefined,
+  remote: UserProfile,
+): UserProfile {
+  if (hasActiveSubscription(local) && !hasActiveSubscription(remote)) {
+    return {
+      ...remote,
+      subscriptionStatus: 'active',
+      subscriptionExpiry: local!.subscriptionExpiry,
+      razorpaySubscriptionId: local!.razorpaySubscriptionId ?? remote.razorpaySubscriptionId,
+    };
+  }
+  return remote;
+}
+
 export function canUseFeature(profile: UserProfile | null, isPremiumMode = false): { allowed: boolean; reason?: string } {
   if (!profile) {
     return { allowed: false, reason: 'Please sign in to use Explain Like WhatsApp' };
