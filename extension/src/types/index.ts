@@ -170,6 +170,9 @@ export const FREE_EXPIRED_DAILY_LIMIT = 5;
 export const PAID_PLAN_PRICE_INR = 150;
 export const CACHE_TTL_DAYS = 30;
 
+/** Razorpay Payment Link used for the ₹150/year Pro plan (hardcoded; not user-editable). */
+export const RAZORPAY_PAYMENT_LINK = 'https://rzp.io/rzp/611tweDZ';
+
 export type MessageType =
   | 'PING'
   | 'EXPLAIN_TEXT'

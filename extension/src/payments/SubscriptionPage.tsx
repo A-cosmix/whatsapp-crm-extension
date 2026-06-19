@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { UserProfile } from '@/types';
-import { PAID_PLAN_PRICE_INR } from '@/types';
+import { PAID_PLAN_PRICE_INR, RAZORPAY_PAYMENT_LINK } from '@/types';
 import { activateSubscription, getSubscriptionStatus } from '@/services/auth/firebase-auth';
 import { scheduleRenewalReminder } from '@/services/payments/razorpay';
 import { isBackendConfigured } from '@/services/backend/subscription-backend';
@@ -25,8 +25,6 @@ const FEATURES = [
   '✅ No watermarks',
   '✅ CosmiQ AI powered explanations',
 ];
-
-const DEFAULT_PAYMENT_LINK = import.meta.env.VITE_RAZORPAY_PAYMENT_LINK || '';
 
 const VERIFY_POLL_INTERVAL_MS = 5000;
 const VERIFY_POLL_MAX_TRIES = 24; // ~2 minutes
@@ -77,21 +75,14 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
       } else if (triesRef.current >= VERIFY_POLL_MAX_TRIES) {
         stopPolling();
         setVerifying(false);
-        setVerifyMsg('Payment abhi verify nahi hui. "Verify Payment" dabao ya thodi der baad Profile se check karo.');
+        setVerifyMsg('Payment not verified yet. Tap "Verify Payment", or check again later from your Profile.');
       }
     }, VERIFY_POLL_INTERVAL_MS);
   };
 
   const handlePayment = async () => {
-    const stored = await chrome.storage.local.get('razorpayPaymentLink');
-    const link = (stored.razorpayPaymentLink as string) || DEFAULT_PAYMENT_LINK;
-
-    if (!link || link.includes('your-payment-link')) {
-      alert('Payment link not configured yet. Ask admin to add Razorpay Payment Link in Settings.');
-      return;
-    }
-
-    // Open Razorpay Payment Link — UPI, Card, Net Banking
+    // Open the hardcoded Razorpay Payment Link — UPI, Card, Net Banking.
+    const link = RAZORPAY_PAYMENT_LINK;
     const paymentUrl = `${link}${link.includes('?') ? '&' : '?'}email=${encodeURIComponent(user.email)}&prefill[email]=${encodeURIComponent(user.email)}`;
     chrome.tabs.create({ url: paymentUrl });
     setPaid(true);
@@ -100,7 +91,7 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
     startPolling();
   };
 
-  // Manual verification: ask the backend right now whether payment landed.
+  // Manual verification: ask the backend right now whether the payment landed.
   const handleVerifyPayment = async () => {
     setVerifying(true);
     setVerifyMsg(null);
@@ -110,13 +101,13 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
         stopPolling();
         setVerifyMsg('🎉 Payment verified — Pro unlocked!');
       } else if (backendOn) {
-        setVerifyMsg('Payment abhi tak nahi mili. Razorpay webhook ko 1-2 min lagte hain — thodi der baad dobara try karo.');
+        setVerifyMsg('Payment not found yet. The Razorpay webhook can take 1–2 minutes — please try again shortly.');
       } else {
         // No backend configured (dev/demo) — fall back to local activation.
         await activateProLocally();
       }
     } catch {
-      setVerifyMsg('Verify nahi ho paya. Internet check karke dobara try karo.');
+      setVerifyMsg('Could not verify. Check your internet connection and try again.');
     } finally {
       if (mountedRef.current) setVerifying(false);
     }
@@ -197,25 +188,25 @@ export function SubscriptionPage({ user, onBack, onSuccess }: SubscriptionPagePr
       {paid && (
         <div className="p-3 rounded-xl bg-green-50 border border-green-100 space-y-2">
           <p className="text-xs text-green-800">
-            ✅ Payment page khul gaya! UPI/Card se pay karo.{' '}
+            ✅ Payment page opened! Pay via UPI or card.{' '}
             {backendOn
-              ? 'Payment ke baad hum automatically verify kar lenge.'
-              : 'Payment ke baad neeche button dabao.'}
+              ? "We'll verify your payment automatically."
+              : 'After paying, tap the button below.'}
           </p>
           {verifying && (
-            <p className="text-xs text-green-700">⏳ Payment verify ho rahi hai…</p>
+            <p className="text-xs text-green-700">⏳ Verifying your payment…</p>
           )}
           <button
             onClick={handleVerifyPayment}
             className="btn-secondary text-sm py-2"
             disabled={verifying}
           >
-            {verifying ? 'Verifying…' : '✅ Maine Payment Kar Diya — Verify Payment'}
+            {verifying ? 'Verifying…' : "✅ I've Paid — Verify Payment"}
           </button>
           <p className="text-[10px] text-gray-500">
             {backendOn
-              ? 'Razorpay webhook se verify hone mein 1-2 min lag sakte hain.'
-              : 'Backend URL set nahi hai — Settings mein add karo for auto-verification.'}
+              ? 'Verification via the Razorpay webhook can take 1–2 minutes.'
+              : 'Backend URL not set — add it in Settings to enable auto-verification.'}
           </p>
         </div>
       )}
