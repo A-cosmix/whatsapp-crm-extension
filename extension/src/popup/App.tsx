@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { LoginPage } from '@/auth/LoginPage';
@@ -11,10 +11,12 @@ import { SubscriptionPage } from '@/payments/SubscriptionPage';
 import { TrialExpired } from '@/payments/TrialExpired';
 import { DailyReport } from '@/dashboard/DailyReport';
 import { NotesPage } from '@/dashboard/NotesPage';
-import { getSubscriptionStatus, updateUserProfile } from '@/services/auth/firebase-auth';
-import { saveLocalProfile } from '@/services/storage/indexed-db';
+import { ProfilePage } from '@/dashboard/ProfilePage';
+import { getSubscriptionStatus, updateUserProfile, logOut } from '@/services/auth/firebase-auth';
+import { saveLocalProfile, clearLocalProfile } from '@/services/storage/indexed-db';
+import { ensureFingerprintStored, getDeviceId } from '@/services/device/fingerprint';
 
-type Page = 'landing' | 'login' | 'signup' | 'forgot' | 'onboarding' | 'dashboard' | 'settings' | 'subscription' | 'report' | 'notes';
+type Page = 'landing' | 'login' | 'signup' | 'forgot' | 'onboarding' | 'dashboard' | 'settings' | 'subscription' | 'report' | 'notes' | 'profile';
 
 function LandingPage({ onGetStarted }: { onGetStarted: () => void }) {
   return (
@@ -52,9 +54,37 @@ export function App() {
   const { user, loading, refresh, setUser } = useAuth();
   const [page, setPage] = useState<Page>('landing');
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const syncedRef = useRef(false);
+
+  // Record the device fingerprint (rich signals available in the popup context)
+  // so the backend can enforce one-trial-per-device.
+  useEffect(() => {
+    void ensureFingerprintStored();
+    void getDeviceId();
+  }, []);
+
+  // On open, reconcile subscription/trial with the backend once so a payment
+  // confirmed by the Razorpay webhook unlocks Pro without any manual step.
+  useEffect(() => {
+    if (!loading && user && !syncedRef.current) {
+      syncedRef.current = true;
+      void refresh();
+    }
+  }, [loading, user, refresh]);
+
+  const handleLogout = async () => {
+    try {
+      await logOut();
+    } catch {
+      // ignore — clear local state regardless
+    }
+    await clearLocalProfile();
+    setUser(null);
+    setPage('landing');
+  };
 
   useEffect(() => {
-    if (!loading && user && !onboardingDone && page !== 'settings' && page !== 'subscription' && page !== 'report' && page !== 'notes') {
+    if (!loading && user && !onboardingDone && page !== 'settings' && page !== 'subscription' && page !== 'report' && page !== 'notes' && page !== 'profile') {
       if (!user.onboardingComplete) {
         setPage('onboarding');
       } else {
@@ -97,10 +127,20 @@ export function App() {
   }
 
   switch (page) {
-    case 'settings': return <SettingsPage user={user} onBack={() => setPage('dashboard')} onLogout={() => setPage('landing')} />;
+    case 'settings': return <SettingsPage user={user} onBack={() => setPage('dashboard')} onLogout={handleLogout} />;
     case 'subscription': return <SubscriptionPage user={user} onBack={() => setPage('dashboard')} onSuccess={refresh} />;
     case 'report': return <DailyReport onBack={() => setPage('dashboard')} />;
     case 'notes': return <NotesPage onBack={() => setPage('dashboard')} />;
+    case 'profile':
+      return (
+        <ProfilePage
+          user={user}
+          onBack={() => setPage('dashboard')}
+          onLogout={handleLogout}
+          onUpgrade={() => setPage('subscription')}
+          onRefresh={refresh}
+        />
+      );
     default: return <Dashboard user={user} onNavigate={(p) => setPage(p as Page)} />;
   }
 }

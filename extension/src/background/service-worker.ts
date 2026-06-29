@@ -26,7 +26,16 @@ import {
   canUseFeature,
   saveExplanationHistorySafe,
   getSubscriptionStatus,
+  mergeProfilePreferActiveSubscription,
+  updateUserProfile,
 } from '@/services/auth/firebase-auth';
+import {
+  fetchAccountStatus,
+  reconcileProfileWithBackend,
+  getBackendUrl,
+} from '@/services/backend/subscription-backend';
+import { getDeviceId, getStoredFingerprint } from '@/services/device/fingerprint';
+import type { UserProfile } from '@/types';
 import { verifyPayment } from '@/services/payments/razorpay';
 import type { DailyLearningReport } from '@/types';
 
@@ -53,6 +62,59 @@ async function recordExplanationUsage(
   } catch {
     // Bookkeeping must never block explanations
   }
+}
+
+/**
+ * Reconcile the cached profile against Firestore and the Sheets backend, then
+ * persist the authoritative subscription/trial state. This is what unlocks Pro
+ * instantly after a Razorpay payment and what enforces one-trial-per-device.
+ */
+async function handleSyncAccount() {
+  const local = await getLocalProfile();
+  if (!local?.uid) return { success: true, profile: null };
+
+  let profile = local as unknown as UserProfile;
+  const uid = profile.uid;
+  const email = profile.email || '';
+
+  // 1) Reconcile with Firestore — never downgrade a still-valid Pro plan.
+  try {
+    const remote = await getUserProfile(uid);
+    if (remote) {
+      profile = mergeProfilePreferActiveSubscription(local as Partial<UserProfile>, remote);
+    }
+  } catch {
+    // Firestore offline — keep the local profile.
+  }
+
+  // 2) Reconcile with the Sheets backend (authoritative for paid Pro + trial reuse).
+  const backendUrl = await getBackendUrl();
+  if (backendUrl && email) {
+    const [deviceId, fingerprint] = await Promise.all([getDeviceId(), getStoredFingerprint()]);
+    const status = await fetchAccountStatus(email, deviceId, fingerprint);
+    if (status.ok) {
+      profile = reconcileProfileWithBackend(profile, status, email);
+    }
+  }
+
+  await saveLocalProfile(profile as unknown as Record<string, unknown>);
+
+  // 3) Best-effort: push an upgraded plan back to Firestore for cross-device use.
+  if (profile.subscriptionStatus === 'active' && profile.subscriptionExpiry) {
+    void updateUserProfile(uid, {
+      subscriptionStatus: 'active',
+      subscriptionExpiry: profile.subscriptionExpiry,
+      razorpaySubscriptionId: profile.razorpaySubscriptionId,
+    }).catch(() => {});
+  }
+
+  const subscriptionStatus = getSubscriptionStatus(profile);
+  return {
+    success: true,
+    profile,
+    subscriptionStatus,
+    pro: subscriptionStatus === 'active',
+  };
 }
 
 async function handleExplainText(payload: ExplainTextPayload) {
@@ -205,7 +267,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
       type: 'basic',
       iconUrl: 'public/icon/128.png',
       title: 'Explain Like WhatsApp Updated',
-      message: 'Open tabs par F5 dabao taaki extension sahi kaam kare.',
+      message: 'Press F5 on your open tabs so the extension works correctly.',
     });
   }
 
@@ -293,12 +355,26 @@ async function handleMessage(message: ExtensionMessage) {
       if (profile?.uid) {
         const fresh = await getUserProfile(profile.uid as string);
         if (fresh) {
-          await saveLocalProfile(fresh as unknown as Record<string, unknown>);
-          return { success: true, profile: fresh, subscriptionStatus: getSubscriptionStatus(fresh) };
+          // Never let a stale Firestore read downgrade a locally-active Pro plan.
+          const merged = mergeProfilePreferActiveSubscription(
+            profile as Partial<UserProfile>,
+            fresh,
+          );
+          await saveLocalProfile(merged as unknown as Record<string, unknown>);
+          return { success: true, profile: merged, subscriptionStatus: getSubscriptionStatus(merged) };
         }
+        // Firestore unavailable — keep the local profile so Pro isn't lost offline.
+        return {
+          success: true,
+          profile,
+          subscriptionStatus: getSubscriptionStatus(profile as unknown as UserProfile),
+        };
       }
       return { success: true, profile: null };
     }
+
+    case 'SYNC_ACCOUNT':
+      return handleSyncAccount();
 
     case 'CHECK_USAGE': {
       const profile = await getLocalProfile();

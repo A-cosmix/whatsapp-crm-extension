@@ -16,7 +16,7 @@ function RefreshBanner({ onRefresh }: { onRefresh: () => void }) {
         boxShadow: '0 4px 20px rgba(0,0,0,0.25)', textAlign: 'center', maxWidth: '90vw',
       }}
     >
-      <div>⚠️ Extension reload ho gayi — pehle page refresh karo!</div>
+      <div>⚠️ Extension reloaded — please refresh the page first!</div>
       <button
         onClick={onRefresh}
         style={{
@@ -171,7 +171,7 @@ export function HighlightExplainer() {
             borderRadius: '12px', fontSize: '14px', fontWeight: 600, fontFamily: 'system-ui,sans-serif',
           }}
         >
-          ✅ Study notes saved! Extension → Study Notes mein dekho
+          ✅ Study notes saved! Open Extension → Study Notes to view.
         </div>
       )}
       {showRefreshBanner && (
@@ -186,7 +186,7 @@ export function HighlightExplainer() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
           }}
         >
-          ✅ Ab koi bhi text select karo — 💬 Explain button dikhega!
+          ✅ Now select any text — the 💬 Explain button will appear!
         </div>
       )}
       {showButton && (

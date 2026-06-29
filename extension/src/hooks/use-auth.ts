@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import type { UserProfile } from '@/types';
-import { onAuthChange, getUserProfile, ensureUserProfile, syncProfileToFirestore } from '@/services/auth/firebase-auth';
+import {
+  onAuthChange,
+  getUserProfile,
+  ensureUserProfile,
+  syncProfileToFirestore,
+  mergeProfilePreferActiveSubscription,
+} from '@/services/auth/firebase-auth';
 import { getLocalProfile, saveLocalProfile } from '@/services/storage/indexed-db';
 
 export function useAuth() {
@@ -19,10 +25,15 @@ export function useAuth() {
         try {
           const remote = await getUserProfile(firebaseUser.uid);
           if (remote) {
-            // Keep local onboarding flag if Firestore hasn't synced yet
+            // Keep local onboarding flag + a still-valid Pro plan if Firestore
+            // hasn't synced the latest activation yet.
+            const remoteWithSub = mergeProfilePreferActiveSubscription(
+              local as Partial<UserProfile>,
+              remote,
+            );
             const merged = {
-              ...remote,
-              onboardingComplete: remote.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
+              ...remoteWithSub,
+              onboardingComplete: remoteWithSub.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
             };
             setUser(merged);
             await saveLocalProfile(merged as unknown as Record<string, unknown>);
@@ -30,9 +41,13 @@ export function useAuth() {
           } else {
             try {
               const created = await ensureUserProfile(firebaseUser.uid);
+              const createdWithSub = mergeProfilePreferActiveSubscription(
+                local as Partial<UserProfile>,
+                created,
+              );
               const merged = {
-                ...created,
-                onboardingComplete: created.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
+                ...createdWithSub,
+                onboardingComplete: createdWithSub.onboardingComplete || !!(local as { onboardingComplete?: boolean })?.onboardingComplete,
               };
               setUser(merged);
               await saveLocalProfile(merged as unknown as Record<string, unknown>);
@@ -54,8 +69,15 @@ export function useAuth() {
   }, []);
 
   const refresh = async () => {
-    const response = await chrome.runtime.sendMessage({ type: 'GET_USER' });
-    if (response.profile) setUser(response.profile);
+    try {
+      // SYNC_ACCOUNT reconciles Firestore + the Sheets backend (paid Pro + trial
+      // reuse) and returns the authoritative profile.
+      const response = await chrome.runtime.sendMessage({ type: 'SYNC_ACCOUNT' });
+      if (response?.profile) setUser(response.profile as UserProfile);
+      return response as { profile?: UserProfile; subscriptionStatus?: string; pro?: boolean } | undefined;
+    } catch {
+      return undefined;
+    }
   };
 
   return { user, loading, refresh, setUser };
