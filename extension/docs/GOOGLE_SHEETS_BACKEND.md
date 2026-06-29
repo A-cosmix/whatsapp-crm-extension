@@ -62,9 +62,9 @@ function handleSync(p) {
     if (String(row[0]).trim().toLowerCase() !== email) continue;
     const status = String(row[3]).trim().toLowerCase();
     const exp = Number(row[5]);
-    if ((status === 'paid' || status === 'active' || status === 'captured') && exp > now) {
+    if ((status === 'paid' || status === 'active' || status === 'captured') && exp > now && (expiry === null || exp > expiry)) {
       pro = true;
-      expiry = exp;
+      expiry = exp;            // keep the furthest-out expiry
       paymentId = String(row[1]);
     }
   }
@@ -107,37 +107,45 @@ function handleSync(p) {
 }
 
 // ---- POST: Razorpay webhook ----
+// NOTE: Apps Script doPost(e) does NOT expose request headers, so the
+// X-Razorpay-Signature cannot be verified here. Keep this /exec URL private.
+// (RAZORPAY_WEBHOOK_SECRET is not used by this simplified script — leave empty.)
 function doPost(e) {
   try {
-    if (RAZORPAY_WEBHOOK_SECRET) {
-      const sig = e.parameter['x-razorpay-signature'] ||
-        (e.headers && (e.headers['X-Razorpay-Signature'] || e.headers['x-razorpay-signature']));
-      const expected = Utilities.base64Encode(
-        Utilities.computeHmacSha256Signature(e.postData.contents, RAZORPAY_WEBHOOK_SECRET)
-      );
-      // Razorpay sends hex; compute hex too for comparison.
-      const hex = Utilities.computeHmacSha256Signature(e.postData.contents, RAZORPAY_WEBHOOK_SECRET)
-        .map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
-      if (sig && sig !== hex && sig !== expected) {
-        return jsonOut({ ok: false, error: 'bad signature' });
+    const body = JSON.parse(e.postData.contents);
+    const payment = body.payload && body.payload.payment && body.payload.payment.entity;
+    const link = body.payload && body.payload.payment_link && body.payload.payment_link.entity;
+    const entity = payment || link || {};
+
+    function pickEmail() {
+      const candidates = [
+        entity.email,
+        payment && payment.email,
+        link && link.customer && link.customer.email,
+        entity.notes && (entity.notes.email || entity.notes.Email),
+        payment && payment.notes && (payment.notes.email || payment.notes.Email),
+        link && link.notes && (link.notes.email || link.notes.Email)
+      ];
+      for (var i = 0; i < candidates.length; i++) {
+        if (candidates[i]) return String(candidates[i]).trim().toLowerCase();
       }
+      return '';
     }
 
-    const body = JSON.parse(e.postData.contents);
-    const entity =
-      (body.payload && body.payload.payment && body.payload.payment.entity) ||
-      (body.payload && body.payload.payment_link && body.payload.payment_link.entity) || {};
-    const email = (entity.email ||
-      (entity.notes && (entity.notes.email || entity.notes.Email)) || '').trim().toLowerCase();
+    const email = pickEmail();
     const paymentId = entity.id || ('pay_' + Date.now());
     const amount = entity.amount || 0;
     const now = Date.now();
+    if (!email) return jsonOut({ ok: false, error: 'no email in payload' });
 
-    if (email) {
-      sheet('Payments').appendRow([
-        email, paymentId, amount, 'paid', now, now + PLAN_DAYS * 86400000
-      ]);
+    const sh = sheet('Payments');
+    // Idempotency: ignore duplicate webhook deliveries for the same payment id.
+    const rows = sh.getDataRange().getValues();
+    for (var r = 1; r < rows.length; r++) {
+      if (String(rows[r][1]) === String(paymentId)) return jsonOut({ ok: true, duplicate: true });
     }
+
+    sh.appendRow([email, paymentId, amount, 'paid', now, now + PLAN_DAYS * 86400000]);
     return jsonOut({ ok: true });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
